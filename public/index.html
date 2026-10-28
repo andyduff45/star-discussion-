@@ -470,7 +470,7 @@ function authHTML(){const A=AUTH,e=esc(A.email);const brand=`<div class="auth-br
  const dev=A.dev?`<p class="callout" style="margin:0">Mode test : aucun serveur e-mail n'est configuré, le code s'affiche dans la console du serveur.</p>`:'';
  let body='';
  if(A.screen==='login')body=`<div><h2>Content de te revoir</h2><p class="lead">Connecte-toi pour rejoindre les salons.</p></div>${msg}
-  <form data-auth="login" class="list" style="gap:12px"><label class="fld"><span>E-mail</span><input class="in" type="email" name="email" id="a_email" autocomplete="email" value="${e}" required></label>${pw('password','Mot de passe','current-password')}
+  <form data-auth="login" class="list" style="gap:12px"><label class="fld"><span>E-mail (ou identifiant admin)</span><input class="in" type="text" name="email" id="a_email" autocomplete="username" autocapitalize="off" spellcheck="false" value="${e}" required></label>${pw('password','Mot de passe','current-password')}
   <button class="btn gold" ${A.busy?'disabled':''}>${A.busy?'Connexion…':'Se connecter'}</button></form>
   <div class="auth-foot"><button class="linkbtn" data-auth-go="forgot">Mot de passe oublié ?</button><span>Pas de compte ? <button class="linkbtn" data-auth-go="signup">Créer un compte</button></span></div>`;
  if(A.screen==='signup')body=`<div><h2>Créer ton compte</h2><p class="lead">Un code de vérification sera envoyé sur ton e-mail.</p></div>${msg}

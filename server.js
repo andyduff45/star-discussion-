@@ -239,6 +239,7 @@ function sessionUser(req) {
   const s = DB.sessions[sha(m[1])];
   if (!s || s.exp < now()) return null;
   const u = DB.users.find(x => x.id === s.uid);
+  if (u?.builtin && !ENV.ADMIN_PASSWORD) return null;
   return u && u.verified && !u.banned ? u : null;
 }
 function dropSessions(userId) { for (const k in DB.sessions) if (DB.sessions[k].uid === userId) delete DB.sessions[k]; saveDB(); }
@@ -495,7 +496,7 @@ const readBody = req => new Promise((resolve, reject) => {
   req.on('error', reject);
 });
 const err = (msg, status = 400) => Object.assign(new Error(msg), { status });
-const findUser = email => DB.users.find(u => u.email === String(email || '').trim().toLowerCase());
+const findUser = email => DB.users.find(u => !u.builtin && u.email === String(email || '').trim().toLowerCase());
 const publicUser = u => ({ id: u.id, email: u.email, username: u.username });
 
 const routes = {
@@ -531,6 +532,17 @@ const routes = {
   },
   'POST /api/login': async (req, res, b) => {
     if (limited(req, 'login', 20)) throw err('Trop de tentatives, réessaie dans quelques minutes.', 429);
+    const adminLogin = (ENV.ADMIN_LOGIN || 'admin').toLowerCase();
+    if (ENV.ADMIN_PASSWORD && String(b.email || '').trim().toLowerCase() === adminLogin) {
+      const given = sha(String(b.password || '')), real = sha(ENV.ADMIN_PASSWORD);
+      if (!crypto.timingSafeEqual(Buffer.from(given), Buffer.from(real))) throw err('E-mail ou mot de passe incorrect.', 401);
+      let a = DB.users.find(x => x.id === 'admin');
+      if (!a) { a = { id: 'admin', email: adminLogin, username: ENV.ADMIN_NAME || 'Admin', hash: '', verified: true, banned: false, createdAt: now(), code: null, builtin: true }; DB.users.push(a); }
+      a.verified = true; a.banned = false; a.username = ENV.ADMIN_NAME || a.username;
+      const m = ensureMember(a); if (!m.roles.includes('r_fond')) m.roles.unshift('r_fond');
+      saveDB(); createSession(res, req, a); broadcast();
+      return send(res, 200, { ok: true, user: publicUser(a) });
+    }
     const u = findUser(b.email);
     if (!u || !checkPassword(String(b.password || ''), u.hash)) throw err('E-mail ou mot de passe incorrect.', 401);
     if (u.banned) throw err('Ce compte est banni du serveur.', 403);
