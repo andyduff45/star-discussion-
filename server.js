@@ -24,7 +24,9 @@ try {
 const ENV = process.env;
 const PORT = +ENV.PORT || 3000;
 const APP_NAME = ENV.APP_NAME || 'Star Discussion';
-const DATA_DIR = ENV.DATA_DIR || path.join(__dirname, 'data');
+let DATA_DIR = ENV.DATA_DIR || path.join(__dirname, 'data');
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.accessSync(DATA_DIR, fs.constants.W_OK); }
+catch (e) { console.warn(`Dossier de données "${DATA_DIR}" inaccessible (${e.code}). Utilisation du dossier local "data" : les comptes seront perdus au prochain redémarrage.`); DATA_DIR = path.join(__dirname, 'data'); fs.mkdirSync(DATA_DIR, { recursive: true }); }
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const ADMIN_EMAIL = (ENV.ADMIN_EMAIL || '').trim().toLowerCase();
