@@ -79,3 +79,13 @@ public/index.html  l'application
 .env.example       modèle de configuration
 data/db.json       données (créé au premier lancement)
 ```
+
+## Sauvegarde gratuite avec Upstash (Render gratuit)
+
+Sur l'offre gratuite de Render, le disque est effacé à chaque redémarrage. Pour tout garder sans payer :
+
+1. Crée un compte gratuit sur https://upstash.com puis **Create Database** (Redis, région Europe).
+2. Dans l'onglet **REST API** de la base, copie `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN`.
+3. Ajoute ces deux variables dans Render (Environment), puis redéploie.
+
+Au démarrage, le serveur recharge tout depuis Upstash ; chaque changement y est sauvegardé en 1 à 2 secondes.

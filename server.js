@@ -99,14 +99,43 @@ let DB;
 try { DB = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch (_) { DB = null; }
 if (!DB || !DB.S) DB = { users: [], sessions: {}, S: seedState() };
 fs.mkdirSync(DATA_DIR, { recursive: true });
-let saveTimer = null;
+/* Sauvegarde distante Upstash (Redis gratuit, via HTTPS) : garde les données même si l'hébergeur efface le disque */
+const UP_URL = (ENV.UPSTASH_REDIS_REST_URL || '').replace(/\/$/, '');
+const UP_TOKEN = ENV.UPSTASH_REDIS_REST_TOKEN || '';
+const UP_KEY = ENV.UPSTASH_KEY || 'star-discussion:db';
+const upstashOn = () => !!(UP_URL && UP_TOKEN);
+async function upstash(cmd) {
+  const r = await fetch(UP_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + UP_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd), signal: AbortSignal.timeout(15000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.error) throw new Error('Upstash : ' + (j.error || r.status));
+  return j.result;
+}
+async function loadRemote() {
+  if (!upstashOn()) return;
+  for (let i = 1; i <= 3; i++) {
+    try {
+      const raw = await upstash(['GET', UP_KEY]);
+      if (raw) { const d = JSON.parse(raw); if (d && d.S) { DB = d; console.log('Données chargées depuis Upstash.'); } }
+      else console.log('Upstash connecté : aucune sauvegarde encore, démarrage à neuf.');
+      return;
+    } catch (e) { console.error(`Lecture Upstash impossible (essai ${i}/3) :`, e.message); await new Promise(r => setTimeout(r, 2000 * i)); }
+  }
+  console.error('ATTENTION : Upstash injoignable, démarrage avec les données locales. Les sauvegardes reprendront quand Upstash répondra.');
+}
+let saveTimer = null, remoteTimer = null, remoteBusy = false, remoteDirty = false;
+function writeLocal() { try { const tmp = DB_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(DB)); fs.renameSync(tmp, DB_FILE); } catch (e) { console.error('Écriture locale impossible :', e.message); } }
+async function flushRemote() {
+  if (!upstashOn()) return;
+  if (remoteBusy) { remoteDirty = true; return; }
+  remoteBusy = true; remoteDirty = false;
+  try { await upstash(['SET', UP_KEY, JSON.stringify(DB)]); }
+  catch (e) { console.error('Sauvegarde Upstash échouée :', e.message); remoteDirty = true; }
+  finally { remoteBusy = false; if (remoteDirty) { clearTimeout(remoteTimer); remoteTimer = setTimeout(flushRemote, 5000); } }
+}
 function saveDB() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const tmp = DB_FILE + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(DB));
-    fs.renameSync(tmp, DB_FILE);
-  }, 300);
+  saveTimer = setTimeout(writeLocal, 300);
+  if (upstashOn()) { clearTimeout(remoteTimer); remoteTimer = setTimeout(flushRemote, 1500); }
 }
 const S = () => DB.S;
 
@@ -768,9 +797,11 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
 });
-server.listen(PORT, () => {
+loadRemote().then(() => server.listen(PORT, () => {
+  if (upstashOn()) console.log('Sauvegarde Upstash active.');
   console.log(`${APP_NAME} est lancé sur http://localhost:${PORT}`);
   if (!mailConfigured()) console.log('SMTP non configuré : les codes de vérification s\'affichent ici, dans la console (mode test).');
-});
-process.on('SIGINT', () => { clearTimeout(saveTimer); fs.writeFileSync(DB_FILE, JSON.stringify(DB)); process.exit(0); });
-process.on('SIGTERM', () => { clearTimeout(saveTimer); fs.writeFileSync(DB_FILE, JSON.stringify(DB)); process.exit(0); });
+}));
+async function shutdown() { clearTimeout(saveTimer); clearTimeout(remoteTimer); writeLocal(); if (upstashOn()) { try { await upstash(['SET', UP_KEY, JSON.stringify(DB)]); } catch (e) { console.error('Dernière sauvegarde Upstash échouée :', e.message); } } process.exit(0); }
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
