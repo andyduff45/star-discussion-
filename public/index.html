@@ -771,6 +771,13 @@ function serverMain(k){const s=S.servers[k];const nm=k==='redm'?'RedM':'FiveM';
 let CONN={loaded:false,loading:false,busy:false,pending:null,oauth:false,err:''};
 function loadConn(){if(CONN.loading)return;CONN.loading=true;api('/api/connections').then(j=>{Object.assign(CONN,{loaded:true,loading:false,pending:j.pending,oauth:j.oauth})}).catch(e=>{CONN.loading=false;CONN.err=e.message}).finally(()=>{CONN.loading=false;render()})}
 const ttTile=(l,v)=>`<div class="kpi"><span>${l}</span><b>${v==null?'–':fmt(v)}</b></div>`;
+function myLivesHTML(t){const c=S.creators.find(x=>String(x.handle).toLowerCase()===String(t.handle).toLowerCase());const m=S.ui.month;const s=c?cstats(c,m):{hours:0,valid:0,dia:0,live:0};
+ const L=c?Object.entries(c.logs||{}).filter(([d])=>d.startsWith(m)).sort((a,b)=>b[0].localeCompare(a[0])):[];const vh=S.settings.validHours;
+ return `<section class="card"><div class="row" style="justify-content:space-between"><div><h3>Mes heures de live</h3><p class="sub" style="margin:0">Note tes lives chaque jour : ils comptent pour tes objectifs et ta fiche créateur. Un jour est validé à partir de ${fmt1(vh)} h.</p></div><input type="month" class="in" style="width:auto" data-act-change="month" value="${m}" aria-label="Mois"></div>
+ <div class="kpis" style="margin-top:14px"><div class="kpi"><span>Heures en ${esc(monthName(m).split(' ')[0])}</span><b class="lv-${lvlH(s.hours)}">${fmt1(s.hours)} h</b><small class="lv-${lvlH(s.hours)}">${LVTXT.h[lvlH(s.hours)]}</small></div><div class="kpi"><span>Jours validés</span><b class="lv-${lvlD(s.valid)}">${s.valid}</b><small class="lv-${lvlD(s.valid)}">${LVTXT.d[lvlD(s.valid)]}</small></div><div class="kpi gold"><span>Diamants</span><b>${fmt(s.dia)}</b><small>${s.live} jours en live</small></div></div>
+ <form data-form="myLive" class="row" style="align-items:flex-end;margin-top:14px"><label class="fld"><span>Date</span><input type="date" class="in" name="d" value="${today()}" max="${today()}" required></label><label class="fld"><span>Durée (h)</span><input type="number" step="0.25" min="0" max="24" class="in" name="h" style="width:110px" placeholder="2.5" required></label><label class="fld"><span>Diamants</span><input type="number" min="0" class="in" name="dia" style="width:130px" value="0"></label><label class="fld"><span>Matchs PK</span><input type="number" min="0" class="in" name="mt" style="width:100px" value="0"></label><button class="btn gold">Enregistrer le live</button></form>
+ <p style="margin:6px 0 0;color:var(--faint);font-size:12px">2 h 30 = 2.5 · 1 h 15 = 1.25 · une date déjà saisie est remplacée.</p>
+ ${L.length?`<div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>Date</th><th>Statut</th><th class="r">Heures</th><th class="r">Diamants</th><th class="r">Matchs PK</th><th></th></tr></thead><tbody>${L.map(([d,l])=>{const ok=(+l.hours||0)>=vh;return `<tr><td class="num">${new Date(d).toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td><span class="pill ${ok?'p-ok':'p-warn'}">${ok?'Validé':'Trop court'}</span></td><td class="r num">${fmt1(l.hours)} h</td><td class="r num">${fmt(l.diamonds)}</td><td class="r num">${fmt(l.matches||0)}</td><td class="r"><button class="btn sm icon danger" data-act="delMyLive" data-d="${d}" aria-label="Supprimer ce live">${ic('trash')}</button></td></tr>`}).join('')}</tbody></table></div>`:`<div class="callout" style="margin-top:14px">Aucun live noté en ${esc(monthName(m))}.</div>`}</section>`}
 function connectionsMain(){const head=`<header class="main-head"><button class="menubtn" data-act="openNav" aria-label="Menu">${ic('menu')}</button>${ic('link')}<h2>Connexions</h2><span class="grow"></span></header>`;
  if(!CONN.loaded){loadConn();return head+`<div class="main-body"><div class="wrap"><div class="card empty">Chargement de tes connexions…</div></div></div>`}
  const t=me().tiktok;let body;
@@ -778,6 +785,7 @@ function connectionsMain(){const head=`<header class="main-head"><button class="
   <div class="row"><button class="btn" data-act="ttRefresh" ${CONN.busy?'disabled':''}>${CONN.busy?'Actualisation…':'Actualiser'}</button><button class="btn danger" data-act="ttUnlink">Déconnecter</button></div></div>
   ${t.bio?`<p style="margin:14px 0 0;color:var(--muted)">${esc(t.bio)}</p>`:''}</section>
   <div class="kpis">${ttTile('Abonnés',t.followers)}${ttTile('J\'aime',t.likes)}${ttTile('Vidéos',t.videos)}${ttTile('Abonnements',t.following)}</div>
+  ${myLivesHTML(t)}
   <p class="callout" style="margin:0">Ton @ et tes abonnés sont visibles sur ton profil. Si l'agence te suit dans l'onglet Créateurs avec ce @, ta fiche est mise à jour automatiquement.${t.method==='bio'?' Tu peux retirer le code de ta bio TikTok.':''}</p>`}
  else{const p=CONN.pending;
   body=`<section class="card"><h3>Connecter ton compte TikTok</h3><p class="sub">Choisis une méthode. Ton mot de passe TikTok n'est jamais demandé.</p>
@@ -856,6 +864,7 @@ document.addEventListener('submit',e=>{const f=e.target;const t=f.dataset.form;i
  if(t==='send'){const inp=$('#composer');const text=inp.value.trim();if(!text)return;const m=me();if(!can(m,'send')){toast('Ton rôle ne permet pas d\'écrire');return}
   if(text.includes('@everyone')&&!can(m,'everyone')){toast('Il faut la permission @everyone');return}
   draft='';inp.value='';stick=true;act('send',{ch:S.ui.channel,text});inp.focus();return}
+ if(t==='myLive'){api('/api/action',{type:'myLive',date:d.d,hours:+String(d.h).replace(',','.'),diamonds:+d.dia||0,matches:+d.mt||0}).then(()=>{toast('Live enregistré');f.reset()}).catch(x=>toast(x.message));S.ui.month=d.d.slice(0,7);return}
  if(t==='ttStart'){CONN.busy=true;CONN.err='';render();api('/api/tiktok/bio/start',{handle:d.h}).then(j=>{CONN.pending=j}).catch(x=>{CONN.err=x.message}).finally(()=>{CONN.busy=false;render()});return}
  if(t==='rename'){api('/api/rename',{username:d.n}).then(()=>{ACCOUNT.username=d.n;toast('Pseudo modifié')}).catch(x=>toast(x.message));return}
  if(t==='password'){api('/api/password',{old:d.old,password:d.pw}).then(()=>{f.reset();toast('Mot de passe modifié')}).catch(x=>toast(x.message));return}
@@ -889,6 +898,7 @@ const A={
  ban:el=>{const m=mem(el.dataset.id);ask(`Bannir ${m.name} ? Son compte ne pourra plus se connecter.`,()=>{act('ban',{id:m.id});S.ui.modal=S.ui.modal?.t==='profile'?null:S.ui.modal},'Bannir');return false},
  unban:el=>{act('unban',{id:el.dataset.id});return false},
  ttCheck:()=>{CONN.busy=true;CONN.err='';api('/api/tiktok/bio/check',{}).then(()=>{CONN.pending=null;toast('Compte TikTok connecté')}).catch(x=>{CONN.err=x.message}).finally(()=>{CONN.busy=false;render()})},
+ delMyLive:el=>{const d=el.dataset.d;ask(`Supprimer le live du ${new Date(d).toLocaleDateString('fr-FR')} ?`,()=>{act('delMyLive',{date:d})},'Supprimer');return false},
  ttCancel:()=>{CONN.pending=null;CONN.err=''},
  ttRefresh:()=>{CONN.busy=true;api('/api/tiktok/refresh',{}).then(()=>toast('Stats TikTok à jour')).catch(x=>toast(x.message)).finally(()=>{CONN.busy=false;render()})},
  ttUnlink:()=>{ask('Déconnecter ton compte TikTok de Star Discussion ?',()=>{api('/api/tiktok/unlink',{}).then(()=>toast('TikTok déconnecté')).catch(x=>toast(x.message))},'Déconnecter');return false},

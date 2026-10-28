@@ -476,6 +476,24 @@ function action(user, a) {
       audit(`${x.name} débanni par ${m.name}`); break;
     }
     case 'state': applyPatch(m, a.patch); break;
+    case 'myLive': case 'delMyLive': {
+      const u = DB.users.find(x => x.id === user.id);
+      if (!u?.tiktok?.handle) throw new Error('Connecte d\'abord ton TikTok dans l\'onglet Connexions.');
+      const d = String(a.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(Date.parse(d))) throw new Error('Date invalide.');
+      if (Date.parse(d) > now() + 36 * 3600 * 1000) throw new Error('Tu ne peux pas saisir un live dans le futur.');
+      let c = st.creators.find(x => String(x.handle).toLowerCase() === u.tiktok.handle.toLowerCase());
+      if (!c) {
+        c = { id: uid(), name: u.tiktok.name || u.username, handle: u.tiktok.handle, agent: '', followers: u.tiktok.followers || 0, since: new Date().toISOString().slice(0, 10), notes: '', logs: {}, goals: { days: 20, hours: 40, diamonds: 150000 }, member: u.id };
+        st.creators.push(c); audit(`${m.name} a été ajouté aux créateurs (@${c.handle})`);
+      }
+      c.member = u.id; c.logs ||= {};
+      if (a.type === 'delMyLive') { delete c.logs[d]; break; }
+      const hours = Math.round(Math.min(24, Math.max(0, +a.hours || 0)) * 100) / 100;
+      const prev = c.logs[d] || {};
+      c.logs[d] = { hours, diamonds: Math.max(0, Math.round(+a.diamonds || 0)), matches: Math.max(0, Math.round(+a.matches || 0)), followers: Math.max(0, Math.round(+a.followers || 0)), viewers: prev.viewers || 0, by: m.id };
+      break;
+    }
     default: throw new Error('Action inconnue.');
   }
   saveDB(); broadcast();
