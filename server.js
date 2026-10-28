@@ -100,14 +100,22 @@ try { DB = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch (_) { DB = null
 if (!DB || !DB.S) DB = { users: [], sessions: {}, S: seedState() };
 fs.mkdirSync(DATA_DIR, { recursive: true });
 /* Sauvegarde distante Upstash (Redis gratuit, via HTTPS) : garde les données même si l'hébergeur efface le disque */
-const UP_URL = (ENV.UPSTASH_REDIS_REST_URL || '').replace(/\/$/, '');
-const UP_TOKEN = ENV.UPSTASH_REDIS_REST_TOKEN || '';
+let UP_URL = (ENV.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/$/, '');
+let UP_TOKEN = (ENV.UPSTASH_REDIS_REST_TOKEN || '').trim();
+/* Tolère un copier-coller de la commande « redis-cli … redis://default:MOTDEPASSE@hôte:6379 » ou de l'URL redis:// */
+for (const v of [UP_URL, UP_TOKEN]) {
+  const m = v.match(/rediss?:\/\/[^:@\s]*:([^@\s]+)@([^:\/\s]+)/);
+  if (m) { UP_URL = 'https://' + m[2]; if (!UP_TOKEN || /redis/.test(UP_TOKEN)) UP_TOKEN = m[1]; break; }
+}
+if (UP_URL && !/^https:\/\//.test(UP_URL)) { const h = UP_URL.match(/[a-z0-9-]+\.upstash\.io/i); UP_URL = h ? 'https://' + h[0] : ''; if (!UP_URL) console.error('UPSTASH_REDIS_REST_URL invalide : il doit commencer par https://'); }
 const UP_KEY = ENV.UPSTASH_KEY || 'star-discussion:db';
 const upstashOn = () => !!(UP_URL && UP_TOKEN);
 async function upstash(cmd) {
-  const r = await fetch(UP_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + UP_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd), signal: AbortSignal.timeout(15000) });
+  let r;
+  try { r = await fetch(UP_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + UP_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd), signal: AbortSignal.timeout(15000) }); }
+  catch (_) { throw new Error('Upstash injoignable (vérifie UPSTASH_REDIS_REST_URL)'); }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.error) throw new Error('Upstash : ' + (j.error || r.status));
+  if (!r.ok || j.error) throw new Error('Upstash a répondu ' + r.status + (r.status === 401 ? ' (token refusé : vérifie UPSTASH_REDIS_REST_TOKEN)' : ''));
   return j.result;
 }
 async function loadRemote() {
