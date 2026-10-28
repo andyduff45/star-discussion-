@@ -138,6 +138,13 @@ function saveDB() {
   if (upstashOn()) { clearTimeout(remoteTimer); remoteTimer = setTimeout(flushRemote, 1500); }
 }
 const S = () => DB.S;
+function ensureAuthChannel() {
+  const st = S();
+  if (!st.channels.some(c => c.id === 'autorisation')) {
+    st.channels.splice(Math.max(0, st.channels.findIndex(c => c.cat === 'k1') + 1), 0, { id: 'autorisation', name: 'autorisation', type: 'text', cat: st.cats[0]?.id || 'k1', topic: 'Demandes de connexion TikTok à valider par un admin' });
+  }
+}
+ensureAuthChannel();
 
 /* ---------- Envoi d'e-mails (client SMTP intégré) ---------- */
 const mailConfigured = () => !!ENV.SMTP_HOST;
@@ -291,7 +298,7 @@ function ensureMember(user) {
   const hasFounder = st.members.some(x => x.roles.includes('r_fond'));
   m = { id: user.id, name: user.username, roles: [], xp: 0, level: 0 };
   if (user.tiktok) m.tiktok = publicTikTok(user.tiktok);
-  if (!hasFounder || (ADMIN_EMAIL && user.email === ADMIN_EMAIL)) m.roles.push('r_fond');
+  if (user.builtin || (!hasFounder && !ENV.ADMIN_PASSWORD) || (ADMIN_EMAIL && user.email === ADMIN_EMAIL)) m.roles.push('r_fond');
   st.members.push(m);
   audit(`${m.name} a rejoint le serveur`);
   for (const b of st.bots) {
@@ -719,6 +726,34 @@ Object.assign(routes, {
     if (DB.users.some(x => x !== u && x.tiktok?.handle.toLowerCase() === h.toLowerCase())) throw err(`Le compte @${h} est déjà connecté à un autre membre.`, 409);
     u.ttPending = { handle: h, code: 'STAR-' + crypto.randomBytes(3).toString('hex').toUpperCase(), exp: now() + 30 * 60 * 1000 };
     saveDB(); send(res, 200, { handle: h, code: u.ttPending.code });
+  },
+  'POST /api/tiktok/request': async (req, res, b) => {
+    const u = sessionUser(req); if (!u) throw err('Non connecté.', 401);
+    if (limited(req, 'ttreq:' + u.id, 10)) throw err('Trop de demandes, attends quelques minutes.', 429);
+    const h = String(b.handle || '').trim().replace(/^https?:\/\/(www\.)?tiktok\.com\//i, '').replace(/^@/, '').split(/[/?#\s]/)[0];
+    if (!/^[A-Za-z0-9_.]{2,30}$/.test(h)) throw err('Pseudo TikTok invalide.');
+    if (DB.users.some(x => x !== u && x.tiktok?.handle.toLowerCase() === h.toLowerCase())) throw err(`Le compte @${h} est déjà connecté à un autre membre.`, 409);
+    ensureAuthChannel(); ensureMember(u);
+    const msgs = S().messages.autorisation ||= [];
+    for (const x of msgs) if (x.req && x.req.uid === u.id && x.req.status === 'pending') { x.req.status = 'cancel'; }
+    let prof = null; try { prof = await fetchTikTokProfile(h); } catch (_) { prof = null; }
+    post('autorisation', { author: u.id, text: '', req: { uid: u.id, handle: prof?.handle || h, name: prof?.nickname || '', followers: prof?.followers ?? null, avatar: prof?.avatar || '', status: 'pending' } });
+    saveDB(); broadcast(); send(res, 200, { ok: true });
+  },
+  'POST /api/tiktok/decide': async (req, res, b) => {
+    const u = sessionUser(req); if (!u) throw err('Non connecté.', 401);
+    const me = mem(u.id); if (!can(me, 'admin') && !can(me, 'roles')) throw err('Seuls les admins peuvent valider une demande.', 403);
+    const msg = (S().messages.autorisation || []).find(x => x.id === b.m && x.req);
+    if (!msg) throw err('Demande introuvable.', 404);
+    if (msg.req.status !== 'pending') throw err('Cette demande a déjà été traitée.');
+    const target = DB.users.find(x => x.id === msg.req.uid); if (!target) throw err('Ce membre n\'existe plus.', 404);
+    if (b.ok) {
+      let prof; try { prof = await fetchTikTokProfile(msg.req.handle); } catch (_) { prof = { handle: msg.req.handle, nickname: msg.req.name || msg.req.handle, bio: '', verified: false, avatar: msg.req.avatar || '', followers: msg.req.followers || 0, following: 0, likes: 0, videos: 0 }; }
+      linkTikTok(target, prof, 'admin');
+      msg.req.status = 'ok'; audit(`${u.username} a validé le TikTok @${prof.handle} de ${target.username}`);
+    } else { msg.req.status = 'no'; audit(`${u.username} a refusé le TikTok @${msg.req.handle} de ${target.username}`); }
+    msg.req.by = u.username; msg.req.at = now();
+    saveDB(); broadcast(); send(res, 200, { ok: true });
   },
   'POST /api/tiktok/bio/check': async (req, res) => {
     const u = sessionUser(req); if (!u) throw err('Non connecté.', 401);
