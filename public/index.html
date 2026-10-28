@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A0C18">
+<title>Star Discussion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: Discord-like shell — icon rail · contextual sidebar · workspace · member list (wide screens). Single dark night-sky look, gold star accent. */
+:root{
+  --ink:#0A0C18; --panel:#111427; --panel2:#171A33; --raise:#1F2345; --raise2:#272C55; --line:#2A2F5C;
+  --text:#E9EAF6; --muted:#9499C6; --faint:#626792;
+  --gold:#F5B841; --gold-soft:rgba(245,184,65,.14); --gold-ink:#1B1406;
+  --ok:#3DD68C; --warn:#FF8A3D; --bad:#F2545B; --info:#6B95FF;
+  --f-display:'Unbounded',ui-rounded,'Segoe UI',system-ui,sans-serif;
+  --f-body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0}[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--ink);color:var(--text);font:14px/1.5 var(--f-body);overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+#app{display:grid;grid-template-columns:72px 250px minmax(0,1fr) auto;height:100%}
+.nav{display:contents}
+.scrim{display:none}
+
+/* Rail */
+.rail{background:var(--ink);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;overflow-y:auto}
+.rail .logo{width:48px;height:48px;border-radius:16px;background:var(--gold);color:var(--gold-ink);display:grid;place-items:center;margin-bottom:6px}
+.rail .logo svg{width:26px;height:26px;fill:var(--gold-ink);stroke:none}
+.rail .sep{width:32px;height:2px;background:var(--line);border-radius:2px;margin:2px 0 6px}
+.rb{position:relative;width:56px;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:4px 0;color:var(--muted)}
+.rb .ic{width:46px;height:46px;border-radius:50%;background:var(--panel2);display:grid;place-items:center;transition:border-radius .15s,background .15s,color .15s}
+.rb .ic svg{width:21px;height:21px}
+.rb .mono{font:700 12px var(--f-display);letter-spacing:.02em}
+.rb small{font-size:10px;font-weight:700;letter-spacing:.03em}
+.rb:hover .ic{border-radius:15px;background:var(--raise);color:var(--text)}
+.rb.on{color:var(--text)}
+.rb.on .ic{border-radius:15px;background:var(--gold);color:var(--gold-ink)}
+.rb.on::before{content:"";position:absolute;left:-8px;top:14px;width:4px;height:26px;border-radius:0 4px 4px 0;background:var(--text)}
+.rb .lock{position:absolute;top:2px;right:4px;width:16px;height:16px;border-radius:50%;background:var(--bad);color:#fff;display:grid;place-items:center}
+.rb .lock svg{width:10px;height:10px;stroke-width:2.6}
+
+/* Sidebar */
+.side{background:var(--panel);display:flex;flex-direction:column;min-height:0;min-width:0}
+.side-head{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--line)}
+.side-head h1{font:700 14px var(--f-display);margin:0;letter-spacing:.01em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-scroll{flex:1;overflow-y:auto;padding:10px 8px 16px;min-height:0}
+.cat{display:flex;align-items:center;justify-content:space-between;padding:12px 6px 4px;color:var(--faint);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.cat button{background:none;border:0;color:var(--faint);padding:2px;border-radius:4px;display:grid}
+.cat button:hover{color:var(--text)}
+.si{width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;background:none;border:0;color:var(--muted);text-align:left;font-weight:600;min-width:0}
+.si span.t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si:hover{background:var(--raise);color:var(--text)}
+.si.on{background:var(--raise2);color:var(--text)}
+.si .badge{font:600 11px var(--f-mono);color:var(--muted)}
+.vlist{padding:2px 0 4px 30px;display:grid;gap:2px}
+.vlist .vu{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);padding:2px 0}
+
+/* User bar with admin button bottom-left */
+.userbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px;background:#0D1022;border-top:1px solid var(--line)}
+.adminbtn{display:flex;align-items:center;gap:6px;height:38px;padding:0 11px;border-radius:9px;border:1px solid var(--line);background:var(--raise);color:var(--muted);font-weight:800;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+.adminbtn:hover{color:var(--text);border-color:var(--gold)}
+.adminbtn.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.me{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:0;padding:3px;border-radius:8px;text-align:left}
+.me:hover{background:var(--raise)}
+.me b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me small{display:block;color:var(--muted);font-size:11px}
+.voicebar{flex:none;padding:8px 10px;border-top:1px solid var(--line);background:#0E1226;display:flex;align-items:center;gap:8px}
+.voicebar .lbl{flex:1;min-width:0}
+.voicebar b{color:var(--ok);font-size:12px;display:block}
+.voicebar small{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+
+/* Avatar */
+.av{flex:none;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#12142A;position:relative}
+.av.bot{border-radius:30%}
+.av .dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2.5px solid var(--panel)}
+
+/* Main */
+.main{background:var(--panel2);display:flex;flex-direction:column;min-width:0;min-height:0}
+.main-head{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--line);min-width:0}
+.main-head h2{font:700 15px var(--f-display);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main-head .topic{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;padding-left:10px;border-left:1px solid var(--line)}
+.menubtn{display:none;background:none;border:0;color:var(--text);padding:6px;border-radius:7px}
+.main-body{flex:1;overflow-y:auto;min-height:0}
+.wrap{padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1180px;margin:0 auto;display:grid;gap:18px}
+
+/* Chat */
+.chat{display:flex;flex-direction:column;min-height:100%;justify-content:flex-end;padding:16px 0 8px}
+.chat-intro{padding:0 16px 18px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.chat-intro .big{width:60px;height:60px;border-radius:50%;background:var(--raise);display:grid;place-items:center;margin-bottom:10px}
+.chat-intro .big svg{width:30px;height:30px}
+.chat-intro h3{font:700 22px var(--f-display);margin:0 0 4px;text-wrap:balance}
+.chat-intro p{margin:0;color:var(--muted)}
+.msg{display:flex;gap:12px;padding:6px 16px;position:relative}
+.msg:hover{background:rgba(255,255,255,.025)}
+.msg .body{min-width:0;flex:1}
+.msg .who{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.msg .who b{font-weight:800;cursor:pointer}
+.msg .who time{color:var(--faint);font-size:11px}
+.msg .txt{overflow-wrap:anywhere;color:#DADCF0}
+.tag{font:700 9px var(--f-body);letter-spacing:.06em;background:var(--info);color:#fff;padding:1px 5px;border-radius:4px;text-transform:uppercase}
+.mention{background:rgba(107,149,255,.18);color:#AFC4FF;border-radius:4px;padding:0 3px;font-weight:600}
+.msg .del{position:absolute;right:12px;top:4px;display:none;background:var(--raise);border:1px solid var(--line);border-radius:6px;color:var(--muted);padding:4px}
+.msg:hover .del{display:grid}
+.msg .del:hover{color:var(--bad)}
+.embed{margin-top:6px;max-width:520px;background:var(--panel);border-left:4px solid var(--gold);border-radius:6px;padding:10px 14px}
+.embed b.et{display:block;font-weight:800;margin-bottom:3px}
+.embed div{color:#CFD2EA;overflow-wrap:anywhere}
+.poll{margin-top:6px;max-width:440px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px}
+.poll b{font-weight:800}
+.popt{position:relative;display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);overflow:hidden;text-align:left}
+.popt i{position:absolute;inset:0 auto 0 0;background:var(--gold-soft)}
+.popt span{position:relative}
+.popt.mine{border-color:var(--gold)}
+.composer{flex:none;padding:0 16px 16px}
+.composer form{display:flex;gap:8px;align-items:center;background:var(--raise);border-radius:10px;padding:6px 6px 6px 14px}
+.composer input{flex:1;min-width:0;background:none;border:0;outline:none;padding:8px 0}
+.composer .hint{font-size:11px;color:var(--faint);padding:6px 4px 0}
+
+/* Members aside */
+.members{width:236px;background:var(--panel);overflow-y:auto;padding:12px 8px;border-left:1px solid var(--line)}
+.mrow{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:7px;background:none;border:0;width:100%;text-align:left}
+.mrow:hover{background:var(--raise)}
+.mrow b{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mrow.off{opacity:.45}
+
+/* Voice room */
+.vroom{padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px;align-content:start}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.vtile{aspect-ratio:16/10;max-width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;display:grid;place-items:center;position:relative}
+.vtile .nm{position:absolute;left:10px;bottom:8px;font-size:12px;font-weight:700;background:rgba(0,0,0,.45);padding:2px 8px;border-radius:6px;display:flex;align-items:center;gap:5px}
+.vtile .ring{border-radius:50%;padding:4px}
+.vtile.talk .ring{box-shadow:0 0 0 3px var(--ok);animation:talk 1.6s ease-in-out infinite}
+@keyframes talk{50%{box-shadow:0 0 0 3px transparent}}
+.vctrl{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.round{width:50px;height:50px;border-radius:50%;border:0;background:var(--raise);color:var(--text);display:grid;place-items:center}
+.round.red{background:var(--bad);color:#fff}
+.round.act{background:var(--bad)}
+.note{font-size:12px;color:var(--faint);text-align:center}
+
+/* Generic UI */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--raise);color:var(--text);font-weight:700;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.gold{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.btn.gold:hover{filter:brightness(1.06)}
+.btn.danger{color:var(--bad);border-color:rgba(242,84,91,.4);background:rgba(242,84,91,.08)}
+.btn.ok{color:var(--ok);border-color:rgba(61,214,140,.4);background:rgba(61,214,140,.08)}
+.btn.sm{height:30px;padding:0 10px;font-size:12px;border-radius:7px}
+.btn.icon{width:36px;padding:0}
+.btn.sm.icon{width:30px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.card h3{font:700 14px var(--f-display);margin:0 0 4px;letter-spacing:.01em}
+.card .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+.fld{display:grid;gap:5px;min-width:0}
+.fld>span{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.in{width:100%;min-width:0;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+.in:focus{border-color:var(--gold)}
+textarea.in{resize:vertical;min-height:64px}
+input[type=color].in{padding:2px;height:38px;width:56px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.sw{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.sw input{appearance:none;width:38px;height:22px;border-radius:11px;background:var(--raise2);position:relative;flex:none;cursor:pointer;transition:background .15s;margin:0}
+.sw input::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.sw input:checked{background:var(--ok)}
+.sw input:checked::after{transform:translateX(16px);background:#fff}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;background:var(--raise);border:1px solid var(--line);white-space:nowrap}
+.chip .d{width:8px;height:8px;border-radius:50%}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:5px 12px;font-weight:700;font-size:12px}
+.fchip.on{background:var(--text);color:var(--ink);border-color:var(--text)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-ok{color:var(--ok);background:rgba(61,214,140,.12)}
+.p-warn{color:var(--warn);background:rgba(255,138,61,.12)}
+.p-bad{color:var(--bad);background:rgba(242,84,91,.12)}
+.p-info{color:var(--info);background:rgba(107,149,255,.13)}
+.p-mute{color:var(--muted);background:var(--raise)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.kpi span{display:block;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.kpi b{display:block;font:600 24px var(--f-mono);margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi small{color:var(--faint);font-size:12px}
+.kpi.gold b{color:var(--gold)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel)}
+th.s{cursor:pointer}
+th.s:hover{color:var(--text)}
+td{padding:9px 12px;border-bottom:1px solid rgba(42,47,92,.6);white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--raise)}
+td .in{padding:5px 7px;width:90px}
+.bar{height:6px;border-radius:3px;background:var(--raise2);overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;background:var(--gold);border-radius:3px}
+.bar.ok i{background:var(--ok)}
+.bar.blue i{background:var(--info)}
+.bar.red i{background:var(--bad)}
+.lv-ok{color:var(--ok)}.lv-blue{color:var(--info)}.lv-red{color:var(--bad)}
+.eyebrow{font-size:11px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.12em}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pagehead h2{font:700 24px var(--f-display);margin:4px 0 0;letter-spacing:-.01em;text-wrap:balance}
+.pagehead p{margin:4px 0 0;color:var(--muted)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.subnav{display:flex;gap:6px;flex-wrap:wrap}
+.list{display:grid;gap:8px}
+.callout{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;color:var(--muted);font-size:13px}
+.callout b{color:var(--text)}
+code,.code{font-family:var(--f-mono);font-size:12px;background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+
+/* Bots */
+.cmd{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:14px;display:grid;gap:12px}
+.cmd.off{opacity:.6}
+.cmd-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.trig{font:600 14px var(--f-mono);color:var(--gold)}
+.act{display:grid;gap:8px;padding:10px;border-radius:9px;background:var(--panel);border:1px solid var(--line)}
+.act .row{align-items:flex-end}
+.botcard{display:flex;gap:14px;align-items:center}
+
+/* Creators */
+.crow{display:flex;align-items:center;gap:10px;min-width:0}
+.crow .nm{min-width:0}
+.crow .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow .nm small{display:block;color:var(--muted);font-size:12px}
+.chart svg{width:100%;height:auto;display:block}
+.tier{font:700 10px var(--f-display);letter-spacing:.06em;padding:3px 8px;border-radius:6px;text-transform:uppercase}
+
+/* Servers */
+.srvhero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center}
+.status-big{font:700 26px var(--f-display);margin:6px 0 2px}
+.seg{display:inline-flex;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{border:0;background:none;color:var(--muted);padding:7px 12px;border-radius:7px;font-weight:800;font-size:12px}
+.seg button.on.s-online{background:var(--ok);color:#07251A}
+.seg button.on.s-maintenance{background:var(--warn);color:#2A1404}
+.seg button.on.s-closed{background:var(--bad);color:#fff}
+.who-can{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+.who-can svg{width:22px;height:22px;color:var(--gold);margin-top:2px}
+.inc{display:grid;grid-template-columns:5px minmax(0,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.inc .stripe{background:var(--muted)}
+.inc .ib{padding:12px 14px;display:grid;gap:6px;min-width:0}
+.inc p{margin:0;color:#CFD2EA;overflow-wrap:anywhere}
+.loglist{display:grid;gap:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+.loglist div{display:flex;gap:12px;padding:9px 14px;border-bottom:1px solid rgba(42,47,92,.6);font-size:13px}
+.loglist div:last-child{border:0}
+.loglist time{color:var(--faint);font-family:var(--f-mono);font-size:12px;flex:none}
+.locked{display:grid;place-items:center;text-align:center;gap:14px;padding:60px 16px}
+.locked .big{width:72px;height:72px;border-radius:22px;background:var(--raise);display:grid;place-items:center;color:var(--gold)}
+.locked .big svg{width:34px;height:34px}
+.locked h2{font:700 20px var(--f-display);margin:0}
+.locked p{margin:0;color:var(--muted);max-width:42ch}
+
+/* Auth */
+#auth{position:fixed;inset:0;overflow-y:auto;display:grid;place-items:center;padding-block:max(24px,env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:radial-gradient(1200px 600px at 80% -10%,rgba(245,184,65,.10),transparent 60%),var(--ink)}
+.auth-card{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px 24px;display:grid;gap:16px}
+.auth-brand{display:flex;align-items:center;gap:12px}
+.auth-brand .logo{width:44px;height:44px;border-radius:14px;background:var(--gold);display:grid;place-items:center;flex:none}
+.auth-brand .logo svg{width:24px;height:24px;fill:var(--gold-ink);stroke:none}
+.auth-brand b{font:700 17px var(--f-display);letter-spacing:.01em}
+.auth-card h2{font:700 22px var(--f-display);margin:4px 0 0;text-wrap:balance}
+.auth-card p.lead{margin:0;color:var(--muted)}
+.auth-card .btn{height:44px;font-size:14px}
+.auth-err{background:rgba(242,84,91,.1);border:1px solid rgba(242,84,91,.35);color:#FFB3B6;border-radius:10px;padding:10px 12px;font-size:13px}
+.auth-ok{background:rgba(61,214,140,.08);border:1px solid rgba(61,214,140,.35);color:#9CF0C6;border-radius:10px;padding:10px 12px;font-size:13px}
+.linkbtn{background:none;border:0;color:var(--gold);font-weight:700;padding:0;font-size:13px}
+.linkbtn:disabled{color:var(--faint);cursor:default}
+.auth-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.codein{font:600 28px var(--f-mono);letter-spacing:.5em;text-align:center;padding:12px 8px 12px calc(8px + .5em)}
+.boot{height:100%;display:grid;place-items:center;color:var(--muted)}
+
+/* Modal */
+.ov{position:fixed;inset:0;background:rgba(4,5,12,.72);display:grid;place-items:center;z-index:50;padding-block:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.modal{width:min(480px,100%);max-height:100%;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:14px}
+.modal.wide{width:min(1040px,100%);height:min(760px,100%);padding:0;display:grid;grid-template-columns:200px minmax(0,1fr);gap:0;overflow:hidden}
+.modal h3{font:700 17px var(--f-display);margin:0}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.apside{background:var(--ink);padding:16px 10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto}
+.apside .eyebrow{padding:0 8px 10px}
+.apmain{overflow-y:auto;padding:22px;display:grid;gap:16px;align-content:start;min-width:0}
+.apmain h2{font:700 20px var(--f-display);margin:0}
+.rolegrid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px}
+.perm{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.perm:last-child{border:0}
+#confirm-root .ov{z-index:60}
+#toast{position:fixed;left:50%;bottom:max(20px,calc(env(safe-area-inset-bottom,0px) + 12px));transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--ink);padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;opacity:0;pointer-events:none;transition:all .2s;z-index:70;max-width:calc(100% - 32px);text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:1200px){ .members{display:none} #app{grid-template-columns:72px 250px minmax(0,1fr)} }
+@media (max-width:820px){
+  #app{grid-template-columns:minmax(0,1fr)}
+  .nav{display:flex;position:fixed;inset:0 auto 0 0;z-index:40;height:100%;transform:translateX(-105%);transition:transform .2s;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--ink);padding-left:env(safe-area-inset-left,0px)}
+  .nav .side{width:min(270px,calc(100vw - 88px))}
+  .nav.open{transform:none}
+  .nav.open + .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:39}
+  .menubtn{display:grid}
+  .modal.wide{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .apside{flex-direction:row;overflow-x:auto;padding:10px}
+  .apside .eyebrow{display:none}
+  .apside .si{width:auto;white-space:nowrap}
+  .rolegrid{grid-template-columns:minmax(0,1fr)}
+  .srvhero{grid-template-columns:minmax(0,1fr)}
+  .main-head .topic{display:none}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+
+</head>
+<body>
+<div id="auth" hidden></div>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="confirm-root"></div>
+<div id="toast" role="status"></div>
+
+<script>
+/* ===================== Utilitaires ===================== */
+const KEY='staragence-v1';
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const nf=new Intl.NumberFormat('fr-FR'); const nf1=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1});
+const fmt=n=>nf.format(Math.round(n||0)); const fmt1=n=>nf1.format(n||0);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+const slug=s=>String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'salon';
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const AVC=['#F5B841','#FF5FA8','#6B95FF','#3DD68C','#B387FF','#FF8A3D','#2EC4D6','#F2545B'];
+const hcol=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;return AVC[Math.abs(h)%AVC.length]};
+const ini=n=>String(n).trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+function rich(s){let h=esc(s);h=h.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');h=h.replace(/(^|\s)@([\wÀ-ÿ.\-]+)/g,'$1<span class="mention">@$2</span>');h=h.replace(/(^|\s)#([\wÀ-ÿ\-]+)/g,'$1<span class="mention">#$2</span>');return h.replace(/\n/g,'<br>')}
+function tfmt(ts){const d=new Date(ts),n=new Date();const t=`${pad(d.getHours())}:${pad(d.getMinutes())}`;return d.toDateString()===n.toDateString()?`Aujourd'hui à ${t}`:`${pad(d.getDate())}/${pad(d.getMonth()+1)} à ${t}`}
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400)}
+
+const I={
+ star:'<path d="M12 2.8l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17l-5.6 3 1.1-6.2L3 9.4l6.2-.9z"/>',
+ hash:'<path d="M5 9h15M4 15h15M10 3L8 21M16 3l-2 18"/>',
+ voice:'<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/>',
+ bot:'<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 17h5"/>',
+ diamond:'<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M12 21L8 9l4-6 4 6z"/>',
+ shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ trash:'<path d="M4 7h16M10 11v6M14 11v6M5 7l1 13h12l1-13M9 7V4h6v3"/>',
+ mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',
+ micoff:'<path d="M3 3l18 18M9 9v2a3 3 0 005 2.2M15 9.3V6a3 3 0 00-5.7-1.3M5 11a7 7 0 0011.5 5.4M19 11a7 7 0 01-.6 2.8M12 18v3"/>',
+ head:'<path d="M4 15v-3a8 8 0 0116 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+ hang:'<path d="M3 15c5-5 13-5 18 0l-2.5 2.5-3.5-1.5v-3a12 12 0 00-6 0v3L5.5 17.5z"/>',
+ menu:'<path d="M4 7h16M4 12h16M4 17h16"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/>',
+ lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+ send:'<path d="M4 12l16-8-6 16-3-7z"/>', users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0M16 4.5a3.5 3.5 0 010 7M18 20a6 6 0 00-2.5-4.9"/>',
+ up:'<path d="M12 19V5M6 11l6-6 6 6"/>', down:'<path d="M12 5v14M6 13l6 6 6-6"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
+ alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5h.01"/>', check:'<path d="M5 12l5 5 9-10"/>', play:'<path d="M7 4l13 8-13 8z"/>', link:'<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>'
+};
+const ic=(n,cls='')=>`<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
+
+/* ===================== Données ===================== */
+const PERMS=[['admin','Administrateur','Tous les droits, ignore les autres réglages'],['channels','Gérer les salons','Créer, renommer et supprimer des salons'],['roles','Gérer les rôles','Créer et attribuer des rôles'],['bots','Gérer les bots','Créer et modifier les bots'],['creators','Gérer les créateurs','Modifier les stats TikTok'],['redm','Panel RedM','Gérer les accès au serveur RedM'],['fivem','Panel FiveM','Gérer les accès au serveur FiveM'],['kick','Expulser','Retirer un membre du serveur'],['ban','Bannir','Bannir définitivement un membre'],['send','Envoyer des messages','Écrire dans les salons textuels'],['voice','Parler en vocal','Rejoindre et parler dans les vocaux'],['everyone','Mentionner @everyone','Notifier tout le serveur']];
+const KINDS=[['reply','Répondre'],['embed','Message encadré'],['random','Réponse aléatoire'],['dice','Lancer de dé'],['giveRole','Donner un rôle'],['removeRole','Retirer un rôle'],['kick','Expulser un membre'],['ban','Bannir un membre'],['clear','Supprimer des messages'],['createChannel','Créer un salon'],['poll','Lancer un sondage'],['sendTo','Envoyer dans un autre salon'],['deleteTrigger','Supprimer le message déclencheur']];
+
+function seed(){
+ const R=(id,name,color,p)=>({id,name,color,perms:Object.fromEntries(PERMS.map(([k])=>[k,p.includes('*')||p.includes(k)]))});
+ const roles=[R('r_fond','Fondateur','#F5B841',['*']),R('r_admin','Admin','#F2545B',['admin']),R('r_modo','Modérateur','#6B95FF',['channels','kick','send','voice','redm','fivem','creators']),R('r_crea','Créateur TikTok','#FF5FA8',['send','voice']),R('r_vip','VIP','#3DD68C',['send','voice']),R('r_membre','Membre','#9499C6',['send','voice'])];
+ const M=(id,name,roles,status='online')=>({id,name,roles,status,xp:0,level:0});
+ const members=[M(ME,'Andy',['r_fond']),M('m1','Lina',['r_admin']),M('m2','Yanis',['r_modo']),M('m3','Inès',['r_crea']),M('m4','Mehdi',['r_crea']),M('m5','Sarah',['r_crea','r_vip']),M('m6','Kenzo',['r_membre'],'idle'),M('m7','Nora',['r_membre'],'offline'),M('m8','Tom',['r_crea'],'offline')];
+ const cats=[{id:'k1',name:'Accueil'},{id:'k2',name:'Agence'},{id:'k3',name:'Vocaux'}];
+ const C=(id,name,type,cat,topic='')=>({id,name,type,cat,topic});
+ const channels=[C('bienvenue','bienvenue','text','k1','Les nouveaux arrivent ici'),C('annonces','annonces','text','k1','Infos officielles de l\'agence'),C('regles','règles','text','k1','À lire avant tout'),C('general','général','text','k2','Discussion libre entre créateurs et staff'),C('planning','planning-lives','text','k2','Qui est en live et quand'),C('diamants','stats-diamants','text','k2','Partagez vos records'),C('bugs','support-bugs','text','k2','Signalez un souci sur RedM, FiveM ou l\'app'),C('v1','Salon vocal','voice','k3'),C('v2','Réunion agence','voice','k3'),C('v3','Préparation live','voice','k3')];
+ const now=Date.now(),h=3600e3;
+ const messages={
+  general:[{id:uid(),author:'m1',text:'Rappel : réunion agence jeudi 20h dans le vocal **Réunion agence**.',ts:now-5*h},{id:uid(),author:'m3',text:'Hier j\'ai fait 3h40 de live, 18 400 diamants. Nouveau record !',ts:now-3*h},{id:uid(),author:'m5',text:'@Inès énorme bravo ! On fait un match PK ce soir ?',ts:now-2.8*h},{id:uid(),author:'m4',text:'!de',ts:now-1*h},{id:uid(),bot:'b1',text:'@Mehdi lance un dé à 6 faces : **4**',ts:now-1*h+2000}],
+  annonces:[{id:uid(),author:'m1',text:'Les objectifs d\'octobre sont en ligne dans l\'onglet Créateurs : **20 jours validés**, **40 h de live**.',ts:now-30*h}],
+  regles:[{id:uid(),bot:'b1',embed:{title:'Règles de Star Discussion',desc:'1. Respect de tous les membres.\n2. Pas de pub sans accord du staff.\n3. Une journée de live est validée à partir d\'1 h.\n4. Les bugs RedM/FiveM se signalent dans #support-bugs.',color:'#F5B841'},ts:now-70*h}],
+  bienvenue:[{id:uid(),bot:'b1',text:'Bienvenue @Kenzo sur **Star Discussion** ! Lis #règles et présente-toi.',ts:now-48*h}],
+  bugs:[{id:uid(),author:'m6',text:'Sur FiveM le garage du centre ne sort plus les véhicules.',ts:now-4*h},{id:uid(),author:'m2',text:'Vu, serveur passé en maintenance le temps du correctif.',ts:now-3.5*h}]
+ };
+ const bots=[{id:'b1',name:'StarBot',color:'#F5B841',prefix:'!',status:'Veille sur Star Discussion',enabled:true,
+  commands:[
+   {id:uid(),on:true,trigger:'salut',type:'prefix',desc:'Dire bonjour',role:'',actions:[{id:uid(),kind:'reply',value:'Salut {user} ! Tape !help pour voir toutes mes commandes.'}]},
+   {id:uid(),on:true,trigger:'regles',type:'prefix',desc:'Afficher les règles',role:'',actions:[{id:uid(),kind:'embed',value:'Règles de {server}',value2:'1. Respect de tous.\n2. Pas de pub.\n3. 1 h de live = journée validée.',color:'#F5B841'}]},
+   {id:uid(),on:true,trigger:'de',type:'prefix',desc:'Lancer un dé',role:'',actions:[{id:uid(),kind:'dice',value:6}]},
+   {id:uid(),on:true,trigger:'8ball',type:'prefix',desc:'Pose une question au destin',role:'',actions:[{id:uid(),kind:'random',value:'Oui|Non|Peut-être|Sans aucun doute|Redemande plus tard|Mieux vaut pas',value2:'{user}, la boule magique répond : **{result}**'}]},
+   {id:uid(),on:true,trigger:'vip',type:'prefix',desc:'Donner le rôle VIP (!vip @membre)',role:'r_admin',actions:[{id:uid(),kind:'giveRole',value:'r_vip',target:'mention'}]},
+   {id:uid(),on:true,trigger:'clear',type:'prefix',desc:'Supprimer les 5 derniers messages',role:'r_modo',actions:[{id:uid(),kind:'clear',value:5}]},
+   {id:uid(),on:true,trigger:'sondage',type:'prefix',desc:'!sondage Question | Choix 1 | Choix 2',role:'',actions:[{id:uid(),kind:'poll',value:'On fait un live commun ce soir ?'}]},
+   {id:uid(),on:true,trigger:'annonce',type:'prefix',desc:'Publier dans #annonces',role:'r_admin',actions:[{id:uid(),kind:'sendTo',channel:'annonces',value:'**Annonce de {user}** : {args}'},{id:uid(),kind:'reply',value:'Annonce publiée dans #annonces.'}]},
+   {id:uid(),on:true,trigger:'live ce soir',type:'contains',desc:'Réponse automatique',role:'',actions:[{id:uid(),kind:'reply',value:'Bon live {user} ! Rappel : 1 h minimum pour valider ta journée.'}]}
+  ],
+  welcome:{on:true,channel:'bienvenue',text:'Bienvenue {user} sur **{server}** ! Lis #règles et présente-toi.',role:'r_membre'},
+  automod:{on:true,words:'arnaque, lien gratuit, free diamonds',warn:'{user}, ton message a été supprimé : mot interdit.',action:'delete'},
+  levels:{on:true,channel:'',text:'GG {user}, tu passes niveau **{level}** !'},
+  schedules:[{id:uid(),on:false,channel:'planning',text:'Pensez à valider votre heure de live aujourd\'hui.',every:60,last:now}]
+ }];
+ // Créateurs : données d'exemple générées
+ const CR=[['c1','Inès Laurent','ines.lvx',.9,5200,'m3'],['c2','Mehdi Kaci','mehdik_live',.75,3100,'m4'],['c3','Sarah Benali','sarahbeauty',.85,6400,'m5'],['c4','Tom Rivière','tomgaming.off',.6,2200,'m8'],['c5','Jade Morel','jade.music',.7,3800,''],['c6','Rayan Diallo','rayan.d',.5,1500,'']];
+ const creators=CR.map(([id,name,handle,p,rate,mid],k)=>{const r=rng(k*97+13);const logs={};
+  for(const [y,m,last] of [[2026,9,30],[2026,10,27]]) for(let d=1;d<=last;d++){ if(r()>p) continue; const hrs=Math.round((0.4+r()*3.8)*4)/4; logs[`${y}-${pad(m)}-${pad(d)}`]={hours:hrs,diamonds:Math.round(hrs*rate*(0.5+r()))*1,matches:Math.floor(r()*hrs*2),followers:Math.floor(r()*hrs*60),viewers:Math.floor(40+r()*rate/12)} }
+  return {id,name,handle,logs,member:mid,agent:k%2?'Yanis':'Lina',since:['2025-03-12','2025-06-02','2024-11-20','2026-01-15','2025-09-08','2026-04-01'][k],followers:[48200,21900,112400,9800,35600,6300][k],notes:'',sample:true,goals:{days:20,hours:40,diamonds:150000}}});
+ const P=(name,discord,ident,status,staff=false)=>({id:uid(),name,discord,ident,status,staff,date:today()});
+ const servers={
+  redm:{name:'Star RP — Far West',ip:'45.155.21.10:30120',status:'online',whitelist:true,crisis:false,maintMsg:'',slots:64,online:38,
+   players:[P('Andy','andy.star','steam:11000010a4b2c9d','ok',true),P('Lina','lina.sa','steam:11000013f71e0a2','ok',true),P('John Marston RP','marston#7','steam:110000144be19f0','ok'),P('Calamity','cala.rp','steam:11000011b0c2d4e','wait'),P('Dutch_vdl','dutch','steam:1100001009ab7f1','banned'),P('Abigail.R','abi','steam:110000155c3e9a1','wait')],
+   incidents:[{id:uid(),title:'Désynchro des chevaux à Valentine',sev:'moyen',cat:'Script',status:'en cours',desc:'Les chevaux disparaissent après une reconnexion.',date:today()}],log:[]},
+  fivem:{name:'Star City RP',ip:'45.155.21.11:30120',status:'maintenance',whitelist:true,crisis:true,maintMsg:'Correctif du garage du centre en cours, retour prévu vers 23h45.',slots:128,online:0,
+   players:[P('Andy','andy.star','license:9f2c1e7a0b4d','ok',true),P('Yanis','yanis.modo','license:3b8e0f11c2aa','ok',true),P('Tony Montana','tony.m','license:7d1a9c3e5f20','ok'),P('Kenzo','kenzo','license:1e4f8a2b6c90','wait'),P('Cheateur99','xx','license:000badbad999','banned'),P('Nora','nora.r','license:5a6b7c8d9e0f','ok')],
+   incidents:[{id:uid(),title:'Garage du centre : véhicules bloqués',sev:'critique',cat:'Script',status:'en cours',desc:'Le menu du garage ne fait plus apparaître les véhicules. Serveur en maintenance.',date:today()},{id:uid(),title:'Lag au spawn de l\'hôpital',sev:'faible',cat:'Performance',status:'résolu',desc:'Corrigé en baissant le nombre de PNJ.',date:today()}],log:[]}
+ };
+ return {v:1,roles,members,cats,channels,messages,bots,creators,servers,banned:[],audit:[],voice:{v2:['m1','m2'],v3:['m5']},
+  settings:{serverName:'Star Discussion',adminCode:'0000',isAdmin:false,validHours:1,rate:0.005,backstageUrl:'https://live-backstage.tiktok.com/'},
+  ui:{view:'forum',channel:'general',bot:'b1',creator:null,month:'2026-10',sort:{k:'diamonds',d:-1},srv:'overview',filter:'all',q:'',adminTab:'roles',roleSel:'r_admin',inVoice:null,muted:false,deaf:false,navOpen:false,modal:null}};
+}
+let S=null,ME=null,ACCOUNT=null;
+const UI_DEFAULT={view:'forum',channel:'general',bot:'b1',creator:null,month:today().slice(0,7),sort:{k:'diamonds',d:-1},srv:'overview',filter:'all',q:'',adminTab:'roles',roleSel:'r_admin',inVoice:null,muted:false,deaf:false,navOpen:false,modal:null};
+let UIS={...UI_DEFAULT};try{Object.assign(UIS,JSON.parse(localStorage.getItem('sd-ui')||'{}'),{modal:null,navOpen:false,inVoice:null,q:''})}catch(e){}
+const SYNC_KEYS=['roles','cats','channels','bots','creators','settings','redm','fivem'];
+const keyVal=k=>k==='redm'||k==='fivem'?S.servers[k]:S[k];
+let snap={},dirty=new Set(),pushT=null;
+function takeSnap(){for(const k of SYNC_KEYS)snap[k]=JSON.stringify(keyVal(k))}
+function save(){if(!S)return;try{localStorage.setItem('sd-ui',JSON.stringify({...S.ui,modal:null,navOpen:false}))}catch(e){}
+ for(const k of SYNC_KEYS)if(JSON.stringify(keyVal(k))!==snap[k])dirty.add(k);
+ if(dirty.size){clearTimeout(pushT);pushT=setTimeout(pushState,450)}}
+async function pushState(){if(!dirty.size)return;const keys=[...dirty];const patch={};for(const k of keys)patch[k]=keyVal(k);dirty.clear();for(const k of keys)snap[k]=JSON.stringify(patch[k]);
+ try{await api('/api/action',{type:'state',patch})}catch(e){toast(e.message);resync()}}
+async function api(url,body){let r;try{r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'})}catch(e){throw new Error('Connexion au serveur impossible. Vérifie ta connexion internet.')}
+ let j={};try{j=await r.json()}catch(e){}
+ if(!r.ok){const e=new Error(j.error||'Erreur du serveur, réessaie.');e.status=r.status;if(r.status===401&&ACCOUNT&&!url.includes('/api/me'))logoutLocal('Ta session a expiré, reconnecte-toi.');throw e}return j}
+function act(type,data={}){return api('/api/action',{type,...data}).catch(e=>toast(e.message))}
+let es=null;
+function connect(){if(es)es.close();es=new EventSource('/api/stream');
+ es.addEventListener('hello',e=>{ME=JSON.parse(e.data).me});
+ es.addEventListener('sync',e=>applySync(JSON.parse(e.data)));
+ es.addEventListener('bye',e=>{const r=JSON.parse(e.data).reason;es.close();es=null;if(r==='banned')logoutLocal('Tu as été banni de ce serveur.');else kickedScreen()});
+ es.onerror=()=>{if(es&&es.readyState===2){es=null;api('/api/me').then(()=>setTimeout(connect,2000)).catch(()=>logoutLocal())}}}
+function resync(){connect()}
+let pendingRender=false;
+function applySync(data){const ui=S?.ui||UIS;const local={};for(const k of dirty)local[k]=keyVal(k);
+ S={...data,ui};for(const k in local){if(k==='redm'||k==='fivem')S.servers[k]=local[k];else S[k]=local[k]}
+ takeSnap();
+ S.ui.inVoice=Object.keys(S.voice||{}).find(k=>S.voice[k].includes(ME))||null;
+ if(!chan(S.ui.channel))S.ui.channel=S.channels.find(c=>c.type==='text')?.id;
+ if(!bot(S.ui.bot))S.ui.bot=S.bots[0]?.id;
+ if(S.ui.creator&&!S.creators.find(c=>c.id===S.ui.creator))S.ui.creator=null;
+ smartRender()}
+function smartRender(){const a=document.activeElement;
+ if(a&&a.id!=='composer'&&a.id!=='pq'&&a.matches('#app input:not([type=checkbox]),#app textarea,#app select,#modal-root input:not([type=checkbox]),#modal-root textarea,#modal-root select')){pendingRender=true;return}
+ const wasComposer=a&&a.id==='composer';const pos=wasComposer?a.selectionStart:0;render();
+ if(wasComposer){const n=$('#composer');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}}
+document.addEventListener('focusout',()=>setTimeout(()=>{if(pendingRender){pendingRender=false;smartRender()}},0));
+function kickedScreen(){S=null;$('#app').innerHTML=`<div class="boot"><div class="locked"><div class="big">${ic('users')}</div><h2>Tu as été expulsé du serveur</h2><p>Tu peux revenir quand tu veux.</p><div class="row" style="justify-content:center"><button class="btn gold" data-act="rejoin">Revenir sur le serveur</button><button class="btn" data-act="logout">Se déconnecter</button></div></div></div>`;$('#modal-root').innerHTML=''}
+function logoutLocal(msg){if(es){es.close();es=null}ACCOUNT=null;S=null;ME=null;dirty.clear();showAuth('login',msg?{err:msg}:{})}
+
+/* ===================== Comptes ===================== */
+let AUTH={screen:'login',email:'',err:'',ok:'',busy:false,cool:0,dev:false};
+let coolT=null;
+function startCool(sec=60){AUTH.cool=sec;clearInterval(coolT);coolT=setInterval(()=>{AUTH.cool--;const b=$('#resendBtn');if(b){b.disabled=AUTH.cool>0;b.textContent=AUTH.cool>0?`Renvoyer le code (${AUTH.cool} s)`:'Renvoyer le code'}if(AUTH.cool<=0)clearInterval(coolT)},1000)}
+function authHTML(){const A=AUTH,e=esc(A.email);const brand=`<div class="auth-brand"><span class="logo"><svg viewBox="0 0 24 24">${I.star}</svg></span><b>Star Discussion</b></div>`;
+ const msg=(A.err?`<div class="auth-err" role="alert">${esc(A.err)}</div>`:'')+(A.ok?`<div class="auth-ok">${esc(A.ok)}</div>`:'');
+ const pw=(n,l,ac)=>`<label class="fld"><span>${l}</span><input class="in" type="password" name="${n}" id="a_${n}" autocomplete="${ac}" minlength="8" required></label>`;
+ const dev=A.dev?`<p class="callout" style="margin:0">Mode test : aucun serveur e-mail n'est configuré, le code s'affiche dans la console du serveur.</p>`:'';
+ let body='';
+ if(A.screen==='login')body=`<div><h2>Content de te revoir</h2><p class="lead">Connecte-toi pour rejoindre les salons.</p></div>${msg}
+  <form data-auth="login" class="list" style="gap:12px"><label class="fld"><span>E-mail</span><input class="in" type="email" name="email" id="a_email" autocomplete="email" value="${e}" required></label>${pw('password','Mot de passe','current-password')}
+  <button class="btn gold" ${A.busy?'disabled':''}>${A.busy?'Connexion…':'Se connecter'}</button></form>
+  <div class="auth-foot"><button class="linkbtn" data-auth-go="forgot">Mot de passe oublié ?</button><span>Pas de compte ? <button class="linkbtn" data-auth-go="signup">Créer un compte</button></span></div>`;
+ if(A.screen==='signup')body=`<div><h2>Créer ton compte</h2><p class="lead">Un code de vérification sera envoyé sur ton e-mail.</p></div>${msg}
+  <form data-auth="signup" class="list" style="gap:12px"><label class="fld"><span>Pseudo</span><input class="in" name="username" id="a_username" autocomplete="username" minlength="2" maxlength="24" required></label><label class="fld"><span>E-mail</span><input class="in" type="email" name="email" id="a_email" autocomplete="email" value="${e}" required></label>${pw('password','Mot de passe (8 caractères min.)','new-password')}${pw('confirm','Confirme le mot de passe','new-password')}
+  <button class="btn gold" ${A.busy?'disabled':''}>${A.busy?'Envoi du code…':'Créer mon compte'}</button></form>
+  <div class="auth-foot"><span>Déjà inscrit ? <button class="linkbtn" data-auth-go="login">Se connecter</button></span></div>`;
+ if(A.screen==='verify')body=`<div><h2>Vérifie ton e-mail</h2><p class="lead">On a envoyé un code à 6 chiffres à <b style="color:var(--text)">${e}</b>. Pense à regarder dans les spams.</p></div>${msg}${dev}
+  <form data-auth="verify" class="list" style="gap:12px"><label class="fld"><span>Code de vérification</span><input class="in codein" name="code" id="a_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label>
+  <button class="btn gold" ${A.busy?'disabled':''}>${A.busy?'Vérification…':'Vérifier et entrer'}</button></form>
+  <div class="auth-foot"><button class="linkbtn" id="resendBtn" data-auth-resend="verify" ${A.cool>0?'disabled':''}>${A.cool>0?`Renvoyer le code (${A.cool} s)`:'Renvoyer le code'}</button><button class="linkbtn" data-auth-go="signup">Changer d'e-mail</button></div>`;
+ if(A.screen==='forgot')body=`<div><h2>Mot de passe oublié</h2><p class="lead">Entre ton e-mail : tu recevras un code pour choisir un nouveau mot de passe.</p></div>${msg}
+  <form data-auth="forgot" class="list" style="gap:12px"><label class="fld"><span>E-mail</span><input class="in" type="email" name="email" id="a_email" autocomplete="email" value="${e}" required></label><button class="btn gold" ${A.busy?'disabled':''}>${A.busy?'Envoi…':'Recevoir un code'}</button></form>
+  <div class="auth-foot"><button class="linkbtn" data-auth-go="login">Retour à la connexion</button></div>`;
+ if(A.screen==='reset')body=`<div><h2>Nouveau mot de passe</h2><p class="lead">Si un compte existe pour <b style="color:var(--text)">${e}</b>, un code vient d'y être envoyé.</p></div>${msg}${dev}
+  <form data-auth="reset" class="list" style="gap:12px"><label class="fld"><span>Code reçu</span><input class="in codein" name="code" id="a_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label>${pw('password','Nouveau mot de passe','new-password')}${pw('confirm','Confirme le mot de passe','new-password')}
+  <button class="btn gold" ${A.busy?'disabled':''}>${A.busy?'Enregistrement…':'Changer et me connecter'}</button></form>
+  <div class="auth-foot"><button class="linkbtn" id="resendBtn" data-auth-resend="reset" ${A.cool>0?'disabled':''}>${A.cool>0?`Renvoyer le code (${A.cool} s)`:'Renvoyer le code'}</button><button class="linkbtn" data-auth-go="login">Retour à la connexion</button></div>`;
+ return `<main class="auth-card">${brand}${body}</main>`}
+function showAuth(screen,extra){Object.assign(AUTH,{screen,err:'',ok:'',busy:false},extra||{});$('#app').innerHTML='';$('#modal-root').innerHTML='';$('#confirm-root').innerHTML='';const a=$('#auth');a.hidden=false;
+ const keep={};a.querySelectorAll('input[id]').forEach(i=>{if(i.type!=='password')keep[i.id]=i.value});
+ a.innerHTML=authHTML();for(const id in keep){const i=a.querySelector('#'+id);if(i&&!i.value&&id!=='a_code')i.value=keep[id]}
+ const f=a.querySelector('#a_code')||a.querySelector('input:not([value]),input[value=""]')||a.querySelector('input');f&&f.focus()}
+function startApp(){$('#auth').hidden=true;$('#auth').innerHTML='';$('#app').innerHTML='<div class="boot">Connexion au serveur…</div>';connect()}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-auth-go]');if(g){showAuth(g.dataset.authGo);return}
+ const r=e.target.closest('[data-auth-resend]');if(r){r.disabled=true;api('/api/resend',{email:AUTH.email,kind:r.dataset.authResend}).then(()=>{AUTH.err='';AUTH.ok='Nouveau code envoyé.';startCool();showAuth(AUTH.screen,{ok:'Nouveau code envoyé.'})}).catch(x=>{showAuth(AUTH.screen,{err:x.message})})}});
+document.addEventListener('submit',async e=>{const f=e.target;const t=f.dataset.auth;if(!t)return;e.preventDefault();const d=Object.fromEntries(new FormData(f));
+ if(d.confirm!==undefined&&d.password!==d.confirm){showAuth(AUTH.screen,{err:'Les deux mots de passe ne correspondent pas.'});return}
+ AUTH.busy=true;AUTH.err='';showAuth(t==='login'?'login':AUTH.screen,{busy:true});
+ try{
+  if(t==='login'){const j=await api('/api/login',{email:d.email,password:d.password});AUTH.email=d.email;if(j.needVerify){startCool();showAuth('verify',{email:j.email,dev:!!j.devMode,ok:'Ton e-mail n\'est pas encore vérifié : un code vient de t\'être envoyé.'});return}ACCOUNT=j.user;startApp()}
+  if(t==='signup'){const j=await api('/api/signup',{email:d.email,username:d.username,password:d.password});startCool();showAuth('verify',{email:j.email,dev:!!j.devMode})}
+  if(t==='verify'){const j=await api('/api/verify',{email:AUTH.email,code:d.code});ACCOUNT=j.user;startApp();toast('Bienvenue sur Star Discussion !')}
+  if(t==='forgot'){const j=await api('/api/forgot',{email:d.email});startCool();showAuth('reset',{email:d.email.trim().toLowerCase(),dev:!!j.devMode})}
+  if(t==='reset'){const j=await api('/api/reset',{email:AUTH.email,code:d.code,password:d.password});ACCOUNT=j.user;startApp();toast('Mot de passe modifié')}
+ }catch(x){showAuth(AUTH.screen,{err:x.message})}});
+
+/* ===================== Helpers modèle/* ===================== Helpers modèle ===================== */
+const mem=id=>S.members.find(m=>m.id===id);
+const role=id=>S.roles.find(r=>r.id===id);
+const chan=id=>S.channels.find(c=>c.id===(id??S.ui.channel));
+const bot=id=>S.bots.find(b=>b.id===id);
+const me=()=>mem(ME)||{id:ME,name:ACCOUNT?.username||'',roles:[]};
+const isAdmin=()=>can(me(),'admin');
+const topRole=m=>S.roles.find(r=>m.roles.includes(r.id));
+const mcol=m=>topRole(m)?.color||'var(--text)';
+const can=(m,p)=>!!m&&m.roles.some(id=>{const r=role(id);return r&&(r.perms.admin||r.perms[p])});
+function audit(t){S.audit.unshift({t,ts:Date.now()});S.audit.length=Math.min(S.audit.length,200)}
+function av(name,col,size=36,opts={}){const st=opts.status?`<i class="dot" style="background:${opts.status==='online'?'var(--ok)':opts.status==='idle'?'var(--warn)':'var(--faint)'}"></i>`:'';
+ return `<span class="av ${opts.bot?'bot':''}" style="width:${size}px;height:${size}px;background:${esc(col)};font-size:${Math.round(size*.38)}px">${opts.bot?`<svg class="i" viewBox="0 0 24 24" style="width:${size*.55}px;height:${size*.55}px;color:#12142A">${I.bot}</svg>`:esc(ini(name))}${st}</span>`}
+function post(ch,msg){(S.messages[ch]||=[]).push({id:uid(),ts:Date.now(),...msg});if(S.messages[ch].length>400)S.messages[ch].shift()}
+function fill(t,ctx){return String(t||'').replace(/\{random:(\d+)-(\d+)\}/g,(_,a,b)=>a*1+Math.floor(Math.random()*(b-a+1))).replace(/\{(\w+)\}/g,(m,k)=>({user:'@'+(ctx.user?.name||''),username:ctx.user?.name||'',channel:'#'+(chan(ctx.ch)?.name||''),server:S.settings.serverName,members:S.members.length,args:ctx.args||'',date:new Date().toLocaleDateString('fr-FR'),time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),level:ctx.level??'',result:ctx.result??'',random:1+Math.floor(Math.random()*100)}[k]??m))}
+
+/* ===================== Moteur des bots ===================== */
+function say(b,ch,content){post(ch,{bot:b.id,...content})}
+function findTarget(args){const mm=String(args||'').match(/@([\wÀ-ÿ.\-]+)/);return mm?S.members.find(x=>x.name.toLowerCase()===mm[1].toLowerCase()):null}
+function matchCmd(b,c,t){const low=t.toLowerCase(),tr=String(c.trigger).toLowerCase().trim();if(!tr)return null;
+ if(c.type==='prefix'){const first=low.split(/\s+/)[0];return first===(b.prefix+tr).toLowerCase()?{args:t.slice(first.length).trim()}:null}
+ if(c.type==='exact')return low.trim()===tr?{args:''}:null;
+ return low.includes(tr)?{args:t}:null}
+function kickMember(t,reason,ban){S.members=S.members.filter(x=>x.id!==t.id);for(const k in S.voice)S.voice[k]=S.voice[k].filter(x=>x!==t.id);if(ban)S.banned.push({name:t.name,reason:reason||'',ts:Date.now()});audit(`${t.name} ${ban?'banni':'expulsé'}${reason?' ('+reason+')':''}`)}
+function execActions(b,c,ch,author,args,msg){const ctx={user:author,ch,args};
+ for(const a of c.actions){switch(a.kind){
+  case 'reply':say(b,ch,{text:fill(a.value,ctx)});break;
+  case 'embed':say(b,ch,{embed:{title:fill(a.value,ctx),desc:fill(a.value2,ctx),color:a.color||b.color}});break;
+  case 'random':{const o=String(a.value||'').split('|').map(s=>s.trim()).filter(Boolean);const r=o[Math.floor(Math.random()*o.length)]||'…';say(b,ch,{text:fill(a.value2||'{result}',{...ctx,result:r})});break}
+  case 'dice':{const n=Math.max(2,+a.value||6);say(b,ch,{text:`${'@'+author.name} lance un dé à ${n} faces : **${1+Math.floor(Math.random()*n)}**`});break}
+  case 'giveRole':case 'removeRole':{const t=a.target==='author'?author:findTarget(args);const r=role(a.value);if(!t||!r){say(b,ch,{text:t?'Rôle introuvable, vérifie la commande.':'Mentionne un membre, par exemple @Kenzo.'});break}
+   if(a.kind==='giveRole'){if(!t.roles.includes(r.id))t.roles.push(r.id);say(b,ch,{text:`Rôle **${r.name}** donné à @${t.name}.`})}else{t.roles=t.roles.filter(x=>x!==r.id);say(b,ch,{text:`Rôle **${r.name}** retiré à @${t.name}.`})}audit(`${b.name} : rôle ${r.name} ${a.kind==='giveRole'?'ajouté à':'retiré de'} ${t.name}`);break}
+  case 'kick':case 'ban':{const t=findTarget(args);if(!t||t.id===ME){say(b,ch,{text:'Mentionne le membre à '+(a.kind==='ban'?'bannir':'expulser')+'.'});break}kickMember(t,a.value,a.kind==='ban');say(b,ch,{text:`@${t.name} a été ${a.kind==='ban'?'banni':'expulsé'}.${a.value?' Raison : '+fill(a.value,ctx):''}`});break}
+  case 'clear':{const n=Math.max(1,+a.value||5);const arr=S.messages[ch]||[];const nArg=parseInt(args);const k=isNaN(nArg)?n:nArg;arr.splice(Math.max(0,arr.length-(k+1)));say(b,ch,{text:`${k} messages supprimés par ${'@'+author.name}.`});break}
+  case 'createChannel':{const nm=slug(fill(a.value||args||'nouveau-salon',ctx));const id=uid();S.channels.push({id,name:a.value2==='voice'?fill(a.value||args,ctx):nm,type:a.value2==='voice'?'voice':'text',cat:a.cat||S.cats[S.cats.length-1]?.id,topic:''});say(b,ch,{text:`Salon **${nm}** créé.`});audit(`${b.name} a créé le salon ${nm}`);break}
+  case 'poll':{const parts=(args||fill(a.value,ctx)).split('|').map(s=>s.trim()).filter(Boolean);const q=parts[0]||'Sondage';let o=parts.slice(1);if(o.length<2)o=['Oui','Non'];say(b,ch,{poll:{q,opts:o.map(l=>({l,v:[]}))}});break}
+  case 'sendTo':if(chan(a.channel))say(b,a.channel,{text:fill(a.value,ctx)});break;
+  case 'deleteTrigger':if(msg){S.messages[ch]=S.messages[ch].filter(x=>x.id!==msg.id)}break;
+ }}}
+function runBots(ch,msg,author){const t=msg.text.trim();
+ for(const b of S.bots){if(!b.enabled)continue;
+  if(b.automod.on&&!can(author,'admin')){const ws=b.automod.words.split(',').map(w=>w.trim().toLowerCase()).filter(Boolean);if(ws.some(w=>t.toLowerCase().includes(w))){S.messages[ch]=S.messages[ch].filter(x=>x.id!==msg.id);say(b,ch,{text:fill(b.automod.warn,{user:author,ch})});audit(`${b.name} a supprimé un message de ${author.name} (auto-modération)`);if(b.automod.action==='kick'&&author.id!==ME){kickMember(author,'auto-modération',false)}return}}
+  if(b.levels.on){author.xp=(author.xp||0)+10+Math.floor(Math.random()*6);const lv=Math.floor(Math.sqrt(author.xp/50));if(lv>(author.level||0)){author.level=lv;say(b,chan(b.levels.channel)?b.levels.channel:ch,{text:fill(b.levels.text,{user:author,ch,level:lv})})}}
+  if(t.toLowerCase()===b.prefix+'help'){say(b,ch,{embed:{title:`Commandes de ${b.name}`,desc:b.commands.filter(c=>c.on).map(c=>`**${c.type==='prefix'?b.prefix+c.trigger:'« '+c.trigger+' »'}** : ${c.desc||'—'}${c.role?' ('+(role(c.role)?.name||'')+')':''}`).join('\n'),color:b.color}});continue}
+  for(const c of b.commands){if(!c.on)continue;const m=matchCmd(b,c,t);if(!m)continue;
+   if(c.role&&!author.roles.includes(c.role)&&!can(author,'admin')){say(b,ch,{text:`@${author.name}, il faut le rôle **${role(c.role)?.name}** pour utiliser cette commande.`});break}
+   execActions(b,c,ch,author,m.args,msg);if(c.type!=='contains')break}
+ }}
+function memberJoin(name){if(S.banned.some(x=>x.name.toLowerCase()===name.toLowerCase())){toast(`${name} est banni et ne peut pas rejoindre`);return}
+ const m={id:uid(),name,roles:[],status:'online',xp:0,level:0};S.members.push(m);audit(`${name} a rejoint le serveur`);
+ for(const b of S.bots){if(!b.enabled||!b.welcome.on)continue;if(b.welcome.role&&role(b.welcome.role)&&!m.roles.includes(b.welcome.role))m.roles.push(b.welcome.role);if(chan(b.welcome.channel))say(b,b.welcome.channel,{text:fill(b.welcome.text,{user:m,ch:b.welcome.channel})})}
+ if(!m.roles.length)m.roles.push(S.roles[S.roles.length-1].id);save();render()}
+
+/* ===================== Créateurs : calculs ===================== */
+function cstats(c,month){const L=Object.entries(c.logs||{}).filter(([d])=>d.startsWith(month)).sort();const vh=S.settings.validHours;
+ let hours=0,dia=0,valid=0,live=0,matches=0,fol=0,peak=0,best=null,streak=0,cur=0,prev=null;
+ for(const [d,l] of L){hours+=+l.hours||0;dia+=+l.diamonds||0;matches+=+l.matches||0;fol+=+l.followers||0;peak=Math.max(peak,+l.viewers||0);if(+l.hours>0)live++;
+  const ok=(+l.hours||0)>=vh;if(ok){valid++;const day=+d.slice(8);cur=prev!==null&&day===prev+1?cur+1:1;prev=day;streak=Math.max(streak,cur)}
+  if(!best||(+l.diamonds||0)>best[1].diamonds)best=[d,l]}
+ const bs=c.bs?.[month];if(bs){if(bs.hours!=null)hours=+bs.hours;if(bs.diamonds!=null)dia=+bs.diamonds;if(bs.validDays!=null)valid=+bs.validDays;if(bs.liveDays!=null)live=+bs.liveDays;if(bs.matches!=null)matches=+bs.matches;if(bs.newFollowers!=null)fol=+bs.newFollowers}
+ const g=c.goals||{};const pd=g.days?valid/g.days:0,ph=g.hours?hours/g.hours:0,pdi=g.diamonds?dia/g.diamonds:0;
+ return {src:bs?'backstage':'manuel',bsAt:bs?.at,hours,dia,valid,live,matches,fol,peak,best,streak,perH:hours?dia/hours:0,usd:dia*S.settings.rate,pd,ph,pdi,goal:Math.min(1,(Math.min(1,pd)+Math.min(1,ph)+Math.min(1,pdi))/3)}}
+/* Paliers de couleur des objectifs : heures < 20 rouge, 20 à 21 bleu, plus de 21 vert ; jours validés < 8 rouge, 8 et plus vert */
+const lvlH=h=>h>21?'ok':h>=20?'blue':'red';
+const lvlD=d=>d>=8?'ok':'red';
+const LVTXT={h:{red:'moins de 20 h',blue:'20 h atteintes',ok:'plus de 21 h'},d:{red:'moins de 8 jours',ok:'8 jours ou plus'}};
+function tier(d){return d>=300000?['Diamant','#9FE7FF']:d>=150000?['Or','#F5B841']:d>=60000?['Argent','#C9CDE8']:d>=15000?['Bronze','#D98B5B']:['Débutant','#7C80AA']}
+const monthName=m=>{const [y,mm]=m.split('-');return new Date(+y,+mm-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
+const dim=m=>{const [y,mm]=m.split('-');return new Date(+y,+mm,0).getDate()};
+
+/* ===================== Synchro TikTok ===================== */
+const SYNC={};
+const cleanHandle=h=>String(h||'').trim().replace(/^https?:\/\/(www\.)?tiktok\.com\//i,'').replace(/^@/,'').split(/[/?#\s]/)[0];
+async function syncProfile(c,quiet){if(!c)return;SYNC[c.id]={busy:true,msg:'Lecture du profil @'+c.handle+'…'};render();
+ try{const j=await api('/api/tiktok',{handle:c.handle});
+  const cur=S.creators.find(x=>x.id===c.id);if(!cur)return;
+  if(+j.followers)cur.followers=+j.followers;cur.tt={nickname:j.nickname||'',following:+j.following||0,likes:+j.likes||0,videos:j.videos==null?null:+j.videos,bio:j.bio||'',verified:!!j.verified,at:Date.now()};
+  if(!cur.name||cur.name===cur.handle)cur.name=j.nickname||cur.handle;SYNC[c.id]={msg:'Profil mis à jour'};save();if(!quiet)toast(`@${cur.handle} : ${fmt(cur.followers)} abonnés`)}
+ catch(e){SYNC[c.id]={err:e.message};if(!quiet)toast(e.message)}render()}
+async function syncAllProfiles(){for(const c of [...S.creators]){await syncProfile(c,true)}const ko=S.creators.filter(c=>SYNC[c.id]?.err).length;toast(ko?`${S.creators.length-ko} profils à jour, ${ko} en erreur`:'Tous les profils sont à jour')}
+const ago=t=>{if(!t)return 'jamais';const m=Math.round((Date.now()-t)/60000);return m<1?'à l\'instant':m<60?`il y a ${m} min`:m<1440?`il y a ${Math.round(m/60)} h`:`le ${new Date(t).toLocaleDateString('fr-FR')}`};
+
+/* ===================== Rendu : rail & sidebar ===================== */
+const VIEWS=[['forum','star','Forum'],['bots','bot','Bots'],['creators','diamond','Créateurs'],['redm','RDM','RedM'],['fivem','5M','FiveM'],['connections','link','Connexions']];
+function rail(){return `<nav class="rail" aria-label="Sections">
+ <div class="logo" title="${esc(S.settings.serverName)}"><svg viewBox="0 0 24 24">${I.star}</svg></div><div class="sep"></div>
+ ${VIEWS.map(([k,i,l])=>`<button class="rb ${S.ui.view===k?'on':''}" data-act="view" data-v="${k}" title="${l}"><span class="ic">${I[i]?ic(i):`<span class="mono">${i}</span>`}</span><small>${l}</small>${(k==='redm'||k==='fivem')&&!can(me(),k)?`<span class="lock">${ic('lock')}</span>`:''}</button>`).join('')}
+ </nav>`}
+function side(){const v=S.ui.view;let body='',title=S.settings.serverName;
+ if(v==='forum'){body=S.cats.map(k=>`<div class="cat"><span>${esc(k.name)}</span><button data-act="newChannel" data-cat="${k.id}" title="Créer un salon dans ${esc(k.name)}" aria-label="Créer un salon">${ic('plus')}</button></div>`+
+  S.channels.filter(c=>c.cat===k.id).map(c=>{const occ=c.type==='voice'?(S.voice[c.id]||[]):[];
+   return `<button class="si ${S.ui.channel===c.id?'on':''}" data-act="chan" data-id="${c.id}">${ic(c.type==='voice'?'voice':'hash')}<span class="t">${esc(c.name)}</span>${c.type==='voice'&&occ.length?`<span class="badge">${occ.length}</span>`:''}</button>`+
+   (occ.length?`<div class="vlist">${occ.map(id=>{const m=mem(id);return m?`<div class="vu">${av(m.name,hcol(m.name),20)}<span>${esc(m.name)}</span>${id===ME&&S.ui.muted?ic('micoff'):''}</div>`:''}).join('')}</div>`:'')}).join('')).join('')}
+ if(v==='bots'){title='Bots';body=`<div class="cat"><span>Tes bots · ${S.bots.length}</span><button data-act="newBot" title="Nouveau bot" aria-label="Nouveau bot">${ic('plus')}</button></div>`+S.bots.map(b=>`<button class="si ${S.ui.bot===b.id?'on':''}" data-act="pickBot" data-id="${b.id}">${av(b.name,b.color,24,{bot:1})}<span class="t">${esc(b.name)}</span><span class="pill ${b.enabled?'p-ok':'p-mute'}" style="padding:1px 7px;font-size:10px">${b.enabled?'actif':'off'}</span></button>`).join('')+`<div style="padding:12px 4px"><button class="btn gold" style="width:100%" data-act="newBot">${ic('plus')}Créer un bot</button></div>`}
+ if(v==='creators'){title='Créateurs';const m=S.ui.month;const list=[...S.creators].map(c=>[c,cstats(c,m)]).sort((a,b)=>b[1].dia-a[1].dia);
+  body=`<button class="si ${!S.ui.creator?'on':''}" data-act="pickCreator" data-id="">${ic('users')}<span class="t">Vue d'ensemble</span></button><div class="cat"><span>Classement · ${esc(monthName(m))}</span><button data-act="newCreator" title="Ajouter un créateur" aria-label="Ajouter un créateur">${ic('plus')}</button></div>`+
+  list.map(([c,s],i)=>`<button class="si ${S.ui.creator===c.id?'on':''}" data-act="pickCreator" data-id="${c.id}"><span class="num" style="width:16px;color:var(--faint);font-size:11px">${i+1}</span>${av(c.name,hcol(c.name),24)}<span class="t">${esc(c.name)}</span><span class="badge">${fmt(s.dia/1000)}k</span></button>`).join('')}
+ if(v==='connections'){title='Connexions';const t=me().tiktok;body=`<div class="cat"><span>Comptes liés</span></div><button class="si on">${ic('link')}<span class="t">TikTok</span><span class="pill ${t?'p-ok':'p-mute'}" style="padding:1px 7px;font-size:10px">${t?'connecté':'non lié'}</span></button><div class="callout" style="margin:12px 4px">Lier ton TikTok affiche ton @ et tes stats sur ton profil, et met à jour ta fiche créateur.</div>`}
+ if(v==='redm'||v==='fivem'){const s=S.servers[v];title=v==='redm'?'RedM':'FiveM';
+  const T=[['overview','Statut & accès','shield'],['access','Whitelist joueurs','users'],['incidents','Bugs & incidents','alert'],['log','Journal','gear']];
+  body=can(me(),v)?`<div class="cat"><span>${esc(s.name)}</span></div>`+T.map(([k,l,i])=>`<button class="si ${S.ui.srv===k?'on':''}" data-act="srvTab" data-id="${k}">${ic(i)}<span class="t">${l}</span>${k==='access'?`<span class="badge">${s.players.filter(p=>p.status==='wait').length||''}</span>`:k==='incidents'?`<span class="badge">${s.incidents.filter(x=>x.status!=='résolu').length||''}</span>`:''}</button>`).join(''):`<div class="callout" style="margin:8px 4px">Section réservée aux rôles qui ont la permission « Panel ${title} ».</div>`}
+ const m=me();const vc=S.ui.inVoice&&chan(S.ui.inVoice);
+ return `<aside class="side"><div class="side-head"><h1>${esc(title)}</h1></div><div class="side-scroll">${body}</div>
+ ${vc?`<div class="voicebar"><div class="lbl"><b>Vocal connecté</b><small>${esc(vc.name)}</small></div><button class="btn sm icon" data-act="mute" title="Micro" aria-label="Couper le micro">${ic(S.ui.muted?'micoff':'mic')}</button><button class="btn sm icon danger" data-act="leaveVoice" title="Quitter" aria-label="Quitter le vocal">${ic('hang')}</button></div>`:''}
+ <div class="userbar"><button class="adminbtn ${isAdmin()?'on':''}" data-act="admin" aria-label="Panel admin">${ic('shield')}Admin</button>
+ <button class="me" data-act="profile" data-id="me">${av(m.name,hcol(m.name),32,{status:'online'})}<span style="min-width:0"><b>${esc(m.name)}</b><small>${esc(topRole(m)?.name||'Membre')}</small></span></button></div></aside>`}
+
+/* ===================== Forum ===================== */
+function msgHTML(m,ch){const b=m.bot?bot(m.bot):null;const u=b?null:(mem(m.author)||{name:'Ancien membre',roles:[]});const name=b?b.name:u.name;const col=b?b.color:mcol(u);
+ let body=m.text?`<div class="txt">${rich(m.text)}</div>`:'';
+ if(m.embed)body+=`<div class="embed" style="border-left-color:${esc(m.embed.color||'#F5B841')}"><b class="et">${rich(m.embed.title)}</b><div>${rich(m.embed.desc)}</div></div>`;
+ if(m.poll){const tot=m.poll.opts.reduce((a,o)=>a+o.v.length,0)||0;body+=`<div class="poll"><b>${esc(m.poll.q)}</b>${m.poll.opts.map((o,i)=>`<button class="popt ${o.v.includes(ME)?'mine':''}" data-act="vote" data-ch="${ch}" data-m="${m.id}" data-i="${i}"><i style="width:${tot?o.v.length/tot*100:0}%"></i><span>${esc(o.l)}</span><span class="num">${o.v.length}</span></button>`).join('')}<small style="color:var(--faint)">${tot} vote${tot>1?'s':''} · clique pour voter</small></div>`}
+ return `<div class="msg">${b?av(name,col,38,{bot:1}):av(name,hcol(name),38)}<div class="body"><div class="who"><b style="color:${esc(col)}" ${u&&mem(m.author)?`data-act="profile" data-id="${m.author}"`:''}>${esc(name)}</b>${b?'<span class="tag">Bot</span>':''}<time>${tfmt(m.ts)}</time></div>${body}</div>${isAdmin()?`<button class="del" data-act="delMsg" data-ch="${ch}" data-m="${m.id}" title="Supprimer" aria-label="Supprimer le message">${ic('trash')}</button>`:''}</div>`}
+let draft='';
+function forumMain(){const c=chan();if(!c){S.ui.channel=S.channels.find(x=>x.type==='text')?.id;return forumMain()}
+ const head=`<header class="main-head"><button class="menubtn" data-act="openNav" aria-label="Menu">${ic('menu')}</button>${ic(c.type==='voice'?'voice':'hash')}<h2>${esc(c.name)}</h2>${c.topic?`<span class="topic">${esc(c.topic)}</span>`:'<span class="grow"></span>'}${can(me(),'channels')?`<button class="btn sm icon" data-act="editChannel" data-id="${c.id}" title="Réglages du salon" aria-label="Réglages du salon">${ic('gear')}</button>`:''}</header>`;
+ if(c.type==='voice'){const occ=(S.voice[c.id]||[]).map(mem).filter(Boolean);const inHere=S.ui.inVoice===c.id;
+  return head+`<div class="main-body"><div class="vroom"><div class="pagehead"><div><div class="eyebrow">Salon vocal</div><h2>${esc(c.name)}</h2><p>${occ.length} connecté${occ.length>1?'s':''}</p></div></div>
+  ${occ.length?`<div class="vgrid">${occ.map((m,i)=>`<div class="vtile ${(m.id!==ME&&i%2===0)||(m.id===ME&&!S.ui.muted)?'talk':''}" style="animation-delay:${i*.4}s"><span class="ring">${av(m.name,hcol(m.name),64)}</span><span class="nm">${m.id===ME&&S.ui.muted?ic('micoff'):''}${esc(m.name)}</span></div>`).join('')}</div>`:`<div class="card empty">Personne pour l'instant. Rejoins le salon pour lancer la discussion.</div>`}
+  <div class="vctrl">${inHere?`<button class="round ${S.ui.muted?'act':''}" data-act="mute" title="Micro" aria-label="Micro">${ic(S.ui.muted?'micoff':'mic')}</button><button class="round ${S.ui.deaf?'act':''}" data-act="deaf" title="Casque" aria-label="Casque">${ic('head')}</button><button class="round red" data-act="leaveVoice" title="Quitter" aria-label="Quitter">${ic('hang')}</button>`:`<button class="btn gold" data-act="joinVoice" data-id="${c.id}">${ic('voice')}Rejoindre le vocal</button>`}</div>
+  <p class="note">Aperçu : le son en direct demande un hébergement avec serveur vocal (WebRTC). La présence, le micro et le casque sont gérés ici.</p></div></div>`}
+ const ms=S.messages[c.id]||[];
+ return head+`<div class="main-body" id="chatScroll"><div class="chat"><div class="chat-intro"><div class="big">${ic('hash')}</div><h3>Bienvenue dans #${esc(c.name)}</h3><p>${esc(c.topic||'Début du salon.')}</p></div>${ms.map(m=>msgHTML(m,c.id)).join('')}</div></div>
+ <div class="composer"><form data-form="send"><input id="composer" autocomplete="off" placeholder="Envoyer un message dans #${esc(c.name)}" value="${esc(draft)}"><button class="btn gold icon" aria-label="Envoyer">${ic('send')}</button></form><div class="hint">Essaie <code>!help</code>, <code>!8ball</code> ou <code>!sondage Question | A | B</code></div></div>`}
+function membersAside(){if(S.ui.view!=='forum')return '';const groups=[];const used=new Set();
+ for(const r of S.roles){const ms=S.members.filter(m=>!used.has(m.id)&&topRole(m)?.id===r.id);ms.forEach(m=>used.add(m.id));if(ms.length)groups.push([r.name,ms])}
+ const rest=S.members.filter(m=>!used.has(m.id));if(rest.length)groups.push(['Sans rôle',rest]);
+ return `<aside class="members">${groups.map(([n,ms])=>`<div class="cat"><span>${esc(n)} — ${ms.length}</span></div>${ms.map(m=>`<button class="mrow ${m.status==='offline'?'off':''}" data-act="profile" data-id="${m.id}">${av(m.name,hcol(m.name),32,{status:m.status})}<b style="color:${esc(mcol(m))}">${esc(m.name)}</b></button>`).join('')}`).join('')}
+ <div class="cat"><span>Bots — ${S.bots.length}</span></div>${S.bots.map(b=>`<button class="mrow ${b.enabled?'':'off'}" data-act="pickBotGo" data-id="${b.id}">${av(b.name,b.color,32,{bot:1})}<b>${esc(b.name)}</b><span class="tag">Bot</span></button>`).join('')}</aside>`}
+
+/* ===================== Bots ===================== */
+const opt=(list,val)=>list.map(([v,l])=>`<option value="${esc(v)}" ${String(v)===String(val??'')?'selected':''}>${esc(l)}</option>`).join('');
+const roleOpts=(v,none)=>opt([...(none?[['',none]]:[]),...S.roles.map(r=>[r.id,r.name])],v);
+const chanOpts=(v,type='text',none)=>opt([...(none?[['',none]]:[]),...S.channels.filter(c=>c.type===type).map(c=>[c.id,(type==='text'?'#':'')+c.name])],v);
+function actionEditor(b,c,a){const p=`bots#${b.id}.commands#${c.id}.actions#${a.id}`;let f='';
+ const txt=(k,l,ph='')=>`<label class="fld grow"><span>${l}</span><input class="in" data-bind="${p}.${k}" value="${esc(a[k]??'')}" placeholder="${esc(ph)}"></label>`;
+ const area=(k,l,ph='')=>`<label class="fld grow" style="flex-basis:100%"><span>${l}</span><textarea class="in" data-bind="${p}.${k}" placeholder="${esc(ph)}">${esc(a[k]??'')}</textarea></label>`;
+ switch(a.kind){
+  case 'reply':f=area('value','Texte du message','Salut {user} !');break;
+  case 'embed':f=txt('value','Titre')+`<label class="fld"><span>Couleur</span><input type="color" class="in" data-bind="${p}.color" value="${esc(a.color||b.color)}"></label>`+area('value2','Contenu');break;
+  case 'random':f=txt('value','Réponses possibles (séparées par |)','Oui|Non|Peut-être')+txt('value2','Modèle','{user} → {result}');break;
+  case 'dice':f=`<label class="fld"><span>Faces</span><input type="number" min="2" class="in" style="width:100px" data-bind="${p}.value" value="${esc(a.value)}"></label>`;break;
+  case 'giveRole':case 'removeRole':f=`<label class="fld grow"><span>Rôle</span><select class="in" data-bind="${p}.value">${roleOpts(a.value)}</select></label><label class="fld grow"><span>Pour qui</span><select class="in" data-bind="${p}.target">${opt([['mention','Le membre mentionné'],['author','L\'auteur de la commande']],a.target)}</select></label>`;break;
+  case 'kick':case 'ban':f=txt('value','Raison (optionnelle)','Non-respect des règles')+`<span class="callout" style="flex-basis:100%">Usage : <code>${esc(b.prefix+c.trigger)} @pseudo</code></span>`;break;
+  case 'clear':f=`<label class="fld"><span>Nombre par défaut</span><input type="number" min="1" class="in" style="width:120px" data-bind="${p}.value" value="${esc(a.value)}"></label><span class="callout grow">Un nombre après la commande remplace celui-ci.</span>`;break;
+  case 'createChannel':f=txt('value','Nom du salon','{args}')+`<label class="fld"><span>Type</span><select class="in" data-bind="${p}.value2">${opt([['text','Textuel'],['voice','Vocal']],a.value2)}</select></label>`;break;
+  case 'poll':f=txt('value','Question par défaut')+`<span class="callout" style="flex-basis:100%">Usage : <code>${esc(b.prefix+c.trigger)} Question | Choix 1 | Choix 2</code></span>`;break;
+  case 'sendTo':f=`<label class="fld"><span>Salon</span><select class="in" data-bind="${p}.channel">${chanOpts(a.channel)}</select></label>`+area('value','Message','{args}');break;
+  case 'deleteTrigger':f=`<span class="callout grow">Le message qui a déclenché la commande sera effacé.</span>`;break;}
+ return `<div class="act"><div class="row"><label class="fld grow"><span>Action</span><select class="in" data-bind="${p}.kind" data-rr>${opt(KINDS,a.kind)}</select></label><button class="btn sm icon danger" data-act="delAction" data-b="${b.id}" data-c="${c.id}" data-a="${a.id}" title="Retirer l'action" aria-label="Retirer l'action">${ic('trash')}</button></div><div class="row">${f}</div></div>`}
+function botsMain(){const b=bot(S.ui.bot)||S.bots[0];
+ const head=`<header class="main-head"><button class="menubtn" data-act="openNav" aria-label="Menu">${ic('menu')}</button>${ic('bot')}<h2>Créateur de bots</h2><span class="grow"></span></header>`;
+ if(!b)return head+`<div class="main-body"><div class="wrap"><div class="card empty"><p>Aucun bot pour l'instant.</p><button class="btn gold" data-act="newBot">${ic('plus')}Créer mon premier bot</button></div></div></div>`;
+ S.ui.bot=b.id;const P=`bots#${b.id}`;
+ return head+`<div class="main-body"><div class="wrap">
+ <div class="pagehead"><div class="botcard">${av(b.name,b.color,58,{bot:1})}<div><div class="eyebrow">Bot · préfixe ${esc(b.prefix)}</div><h2>${esc(b.name)}</h2><p>${esc(b.status||'')} · ${b.commands.length} commandes</p></div></div>
+ <div class="row"><label class="sw"><input type="checkbox" data-bind="${P}.enabled" data-rr ${b.enabled?'checked':''}><b>${b.enabled?'En ligne':'Hors ligne'}</b></label><button class="btn" data-act="testBot">${ic('play')}Tester dans #général</button><button class="btn danger icon" data-act="delBot" data-id="${b.id}" title="Supprimer le bot" aria-label="Supprimer le bot">${ic('trash')}</button></div></div>
+
+ <section class="card"><h3>Profil</h3><p class="sub">Nom, couleur, préfixe et statut affiché aux membres.</p>
+ <div class="grid2"><label class="fld"><span>Nom</span><input class="in" data-bind="${P}.name" value="${esc(b.name)}" data-rr></label>
+ <label class="fld"><span>Préfixe des commandes</span><input class="in" data-bind="${P}.prefix" value="${esc(b.prefix)}" maxlength="3" data-rr></label>
+ <label class="fld"><span>Statut</span><input class="in" data-bind="${P}.status" value="${esc(b.status)}"></label>
+ <label class="fld"><span>Couleur</span><input type="color" class="in" data-bind="${P}.color" value="${esc(b.color)}" data-rr></label></div></section>
+
+ <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h3>Commandes</h3><p class="sub" style="margin:0">Chaque commande enchaîne autant d'actions que tu veux. <code>${esc(b.prefix)}help</code> est générée automatiquement.</p></div><button class="btn gold" data-act="newCmd">${ic('plus')}Nouvelle commande</button></div>
+ <div class="list">${b.commands.map(c=>{const cp=`${P}.commands#${c.id}`;return `<div class="cmd ${c.on?'':'off'}"><div class="cmd-head"><span class="trig">${c.type==='prefix'?esc(b.prefix):''}${esc(c.trigger)}</span><span class="pill p-mute">${{prefix:'Commande',exact:'Message exact',contains:'Contient le texte'}[c.type]}</span>${c.role?`<span class="chip"><i class="d" style="background:${esc(role(c.role)?.color)}"></i>${esc(role(c.role)?.name||'')}</span>`:''}<span class="grow"></span><label class="sw"><input type="checkbox" data-bind="${cp}.on" data-rr ${c.on?'checked':''}></label><button class="btn sm icon danger" data-act="delCmd" data-id="${c.id}" title="Supprimer la commande" aria-label="Supprimer la commande">${ic('trash')}</button></div>
+  <div class="grid2"><label class="fld"><span>Déclencheur</span><input class="in" data-bind="${cp}.trigger" value="${esc(c.trigger)}" data-rr></label><label class="fld"><span>Type</span><select class="in" data-bind="${cp}.type" data-rr>${opt([['prefix','Commande avec préfixe'],['exact','Message exact'],['contains','Le message contient']],c.type)}</select></label>
+  <label class="fld"><span>Description (pour !help)</span><input class="in" data-bind="${cp}.desc" value="${esc(c.desc)}"></label><label class="fld"><span>Rôle requis</span><select class="in" data-bind="${cp}.role" data-rr>${roleOpts(c.role,'Tout le monde')}</select></label></div>
+  ${c.actions.map(a=>actionEditor(b,c,a)).join('')}<div><button class="btn sm" data-act="addAction" data-id="${c.id}">${ic('plus')}Ajouter une action</button></div></div>`}).join('')||'<div class="empty">Aucune commande.</div>'}</div></section>
+
+ <section class="card"><div class="row" style="justify-content:space-between"><div><h3>Bienvenue & arrivées</h3><p class="sub">Message et rôle automatique pour chaque nouveau membre.</p></div><label class="sw"><input type="checkbox" data-bind="${P}.welcome.on" ${b.welcome.on?'checked':''}></label></div>
+ <div class="grid2"><label class="fld"><span>Salon</span><select class="in" data-bind="${P}.welcome.channel">${chanOpts(b.welcome.channel)}</select></label><label class="fld"><span>Rôle donné</span><select class="in" data-bind="${P}.welcome.role">${roleOpts(b.welcome.role,'Aucun')}</select></label></div>
+ <label class="fld" style="margin-top:12px"><span>Message</span><textarea class="in" data-bind="${P}.welcome.text">${esc(b.welcome.text)}</textarea></label>
+ <p class="callout" style="margin:12px 0 0">Envoyé à chaque nouveau compte vérifié.</p></section>
+
+ <section class="card"><div class="row" style="justify-content:space-between"><div><h3>Auto-modération</h3><p class="sub">Supprime les messages contenant un mot interdit. Les admins ne sont pas filtrés.</p></div><label class="sw"><input type="checkbox" data-bind="${P}.automod.on" ${b.automod.on?'checked':''}></label></div>
+ <div class="grid2"><label class="fld"><span>Mots interdits (séparés par des virgules)</span><input class="in" data-bind="${P}.automod.words" value="${esc(b.automod.words)}"></label><label class="fld"><span>Sanction</span><select class="in" data-bind="${P}.automod.action">${opt([['delete','Supprimer + avertir'],['kick','Supprimer + expulser']],b.automod.action)}</select></label></div>
+ <label class="fld" style="margin-top:12px"><span>Avertissement</span><input class="in" data-bind="${P}.automod.warn" value="${esc(b.automod.warn)}"></label></section>
+
+ <section class="card"><div class="row" style="justify-content:space-between"><div><h3>Niveaux & XP</h3><p class="sub">Chaque message rapporte 10 à 15 XP. Annonce à chaque niveau.</p></div><label class="sw"><input type="checkbox" data-bind="${P}.levels.on" ${b.levels.on?'checked':''}></label></div>
+ <div class="grid2"><label class="fld"><span>Salon d'annonce</span><select class="in" data-bind="${P}.levels.channel">${chanOpts(b.levels.channel,'text','Salon du message')}</select></label><label class="fld"><span>Message</span><input class="in" data-bind="${P}.levels.text" value="${esc(b.levels.text)}"></label></div>
+ <div class="chips" style="margin-top:12px">${[...S.members].sort((a,c)=>(c.xp||0)-(a.xp||0)).slice(0,5).map((m,i)=>`<span class="chip">${i+1}. ${esc(m.name)} · niv. ${m.level||0} · <span class="num">${m.xp||0} XP</span></span>`).join('')}</div></section>
+
+ <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h3>Messages programmés</h3><p class="sub" style="margin:0">Envoyés automatiquement par le serveur, même quand personne n'est connecté.</p></div><button class="btn" data-act="newSched">${ic('plus')}Programmer</button></div>
+ <div class="list">${b.schedules.map(s=>{const sp=`${P}.schedules#${s.id}`;return `<div class="act"><div class="row"><label class="sw"><input type="checkbox" data-bind="${sp}.on" ${s.on?'checked':''}></label><label class="fld grow"><span>Salon</span><select class="in" data-bind="${sp}.channel">${chanOpts(s.channel)}</select></label><label class="fld"><span>Toutes les (min)</span><input type="number" min="1" class="in" style="width:110px" data-bind="${sp}.every" value="${esc(s.every)}"></label><button class="btn sm icon danger" data-act="delSched" data-id="${s.id}" aria-label="Supprimer">${ic('trash')}</button></div><input class="in" data-bind="${sp}.text" value="${esc(s.text)}"></div>`}).join('')||'<div class="callout">Aucun message programmé.</div>'}</div></section>
+
+ <section class="card"><h3>Variables disponibles</h3><p class="sub">Utilisables dans tous les textes du bot.</p><div class="chips">${['{user}','{username}','{channel}','{server}','{members}','{args}','{date}','{time}','{random}','{random:1-10}','{level}','{result}'].map(v=>`<code>${v}</code>`).join('')}</div></section>
+ </div></div>`}
+
+/* ===================== Créateurs ===================== */
+function creatorsMain(){const head=`<header class="main-head"><button class="menubtn" data-act="openNav" aria-label="Menu">${ic('menu')}</button>${ic('diamond')}<h2>Créateurs TikTok</h2><span class="grow"></span><input type="month" class="in" style="width:auto" data-act-change="month" value="${S.ui.month}" aria-label="Mois"></header>`;
+ const c=S.creators.find(x=>x.id===S.ui.creator);return head+`<div class="main-body"><div class="wrap">${c?creatorDetail(c):creatorsOverview()}</div></div>`}
+function creatorsOverview(){const m=S.ui.month;const rows=S.creators.map(c=>({c,s:cstats(c,m)}));const vh=S.settings.validHours;
+ const T=rows.reduce((a,{s})=>({dia:a.dia+s.dia,h:a.h+s.hours,v:a.v+s.valid,ok:a.ok+(s.valid>=0?1:0)}),{dia:0,h:0,v:0,ok:0});
+ const sk=S.ui.sort;const key={name:r=>r.c.name,hours:r=>r.s.hours,valid:r=>r.s.valid,diamonds:r=>r.s.dia,perH:r=>r.s.perH,matches:r=>r.s.matches,fol:r=>r.s.fol,goal:r=>r.s.goal};
+ rows.sort((a,b)=>{const x=key[sk.k](a),y=key[sk.k](b);return (x>y?1:x<y?-1:0)*sk.d});
+ const th=(k,l,r)=>`<th class="s ${r?'r':''}" data-act="sort" data-k="${k}">${l}${sk.k===k?(sk.d<0?' ↓':' ↑'):''}</th>`;
+ const reached=rows.filter(r=>r.s.valid>=(r.c.goals.days||0)).length;
+ return `<div class="pagehead"><div><div class="eyebrow">Agence · ${esc(monthName(m))}</div><h2>Performance des créateurs</h2><p>Journée validée à partir de <b>${fmt1(vh)} h</b> de live · ${S.creators.length} créateurs suivis</p></div>
+ <div class="row"><button class="btn gold" data-act="newCreator">${ic('plus')}Ajouter par @</button></div></div>
+ <section class="card"><div class="row" style="justify-content:space-between"><div class="grow"><h3>Synchronisation TikTok</h3><p class="sub" style="margin:0">Abonnés, j'aime et vidéos lus sur le profil public. Heures, jours validés et diamants : import CSV de ton export Backstage, ou saisie sur la fiche.</p></div>
+ <div class="row"><button class="btn" data-act="syncAll" ${Object.values(SYNC).some(x=>x.busy)?'disabled':''}>${ic('users')}Mettre à jour les profils</button><button class="btn gold" data-act="importCsv">Importer CSV</button></div></div></section>
+ <div class="kpis"><div class="kpi gold"><span>Diamants du mois</span><b>${fmt(T.dia)}</b><small>≈ ${fmt(T.dia*S.settings.rate)} $ estimés</small></div><div class="kpi"><span>Heures de live</span><b>${fmt1(T.h)} h</b><small>${fmt1(T.h/Math.max(1,S.creators.length))} h par créateur</small></div><div class="kpi"><span>Jours validés</span><b>${fmt(T.v)}</b><small>${fmt1(T.v/Math.max(1,S.creators.length))} en moyenne</small></div><div class="kpi"><span>Objectif jours atteint</span><b>${reached} / ${S.creators.length}</b><small>créateurs</small></div></div>
+ <div class="tbl-wrap"><table><thead><tr><th>#</th>${th('name','Créateur')}<th>Palier</th>${th('hours','Heures',1)}${th('valid','Jours validés',1)}${th('diamonds','Diamants',1)}${th('perH','Diam./h',1)}${th('matches','Matchs PK',1)}${th('fol','Abonnés +',1)}${th('goal','Objectifs')}</tr></thead><tbody>
+ ${rows.map((r,i)=>{const t=tier(r.s.dia);return `<tr class="click" data-act="pickCreator" data-id="${r.c.id}"><td class="num" style="color:var(--faint)">${i+1}</td><td><div class="crow">${av(r.c.name,hcol(r.c.name),30)}<div class="nm"><b>${esc(r.c.name)}</b><small>@${esc(r.c.handle)}${r.s.src==='backstage'?' · Backstage':''}</small></div></div></td><td><span class="tier" style="color:${t[1]};background:${t[1]}22">${t[0]}</span></td><td class="r num lv-${lvlH(r.s.hours)}">${fmt1(r.s.hours)} h</td><td class="r num lv-${lvlD(r.s.valid)}">${r.s.valid}<span style="color:var(--faint)"> / ${r.c.goals.days||'–'}</span></td><td class="r num" style="color:var(--gold)">${fmt(r.s.dia)}</td><td class="r num">${fmt(r.s.perH)}</td><td class="r num">${fmt(r.s.matches)}</td><td class="r num">${fmt(r.s.fol)}</td><td><div class="row" style="flex-wrap:nowrap"><div class="bar ${r.s.goal>=1?'ok':''}" style="width:90px"><i style="width:${r.s.goal*100}%"></i></div><span class="num" style="font-size:12px">${Math.round(r.s.goal*100)}%</span></div></td></tr>`}).join('')}</tbody></table></div>
+ <section class="card"><h3>Règles de calcul</h3><p class="sub">Appliquées à tous les créateurs.</p><div class="grid3"><label class="fld"><span>Heures min. pour valider un jour</span><input type="number" step="0.25" min="0" class="in" data-bind="settings.validHours" data-rr value="${S.settings.validHours}"></label><label class="fld"><span>Valeur d'un diamant ($)</span><input type="number" step="0.001" min="0" class="in" data-bind="settings.rate" data-rr value="${S.settings.rate}"></label></div>
+ <p class="callout" style="margin:12px 0 0">Les heures, jours validés et diamants ne sont pas publics sur TikTok : ils viennent de ton espace agence TikTok LIVE Backstage. Exporte le tableau du mois et importe-le en CSV, ou saisis les journées sur la fiche de chaque créateur.</p></section>`}
+function chart(c,m){const n=dim(m);const vals=[];let max=0;for(let d=1;d<=n;d++){const l=c.logs[`${m}-${pad(d)}`];const v=l?+l.diamonds||0:0;vals.push([d,v,l&&(+l.hours||0)>=S.settings.validHours]);max=Math.max(max,v)}
+ const step=max>0?Math.pow(10,Math.floor(Math.log10(max/4))):1;const unit=[1,2,2.5,5,10].map(x=>x*step).find(u=>u*4>=max)||step*10;const top=unit*4||1;
+ const W=640,H=210,L=46,B=26,T=10,w=(W-L-8)/n;const y=v=>T+(H-T-B)*(1-v/top);
+ let g='';for(let i=0;i<=4;i++){const v=unit*i;g+=`<line x1="${L}" x2="${W-6}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--faint)" font-family="JetBrains Mono,monospace">${v>=1000?fmt(v/1000)+'k':fmt(v)}</text>`}
+ const bars=vals.map(([d,v,ok],i)=>`<rect x="${L+i*w+w*.15}" y="${y(v)}" width="${w*.7}" height="${Math.max(0,H-B-y(v))}" rx="2" fill="${ok?'var(--gold)':'var(--raise2)'}"><title>${d} : ${fmt(v)} diamants${ok?' · jour validé':''}</title></rect>${(d===1||d%5===0)?`<text x="${L+i*w+w/2}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--faint)" font-family="JetBrains Mono,monospace">${d}</text>`:''}`).join('');
+ return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Diamants par jour">${g}${bars}</svg></div><div class="row" style="font-size:12px;color:var(--muted);margin-top:6px"><span class="chip"><i class="d" style="background:var(--gold)"></i>Jour validé</span><span class="chip"><i class="d" style="background:var(--raise2)"></i>Live trop court ou absent</span></div>`}
+function creatorDetail(c){const m=S.ui.month;const s=cstats(c,m);const t=tier(s.dia);const P=`creators#${c.id}`;const g=c.goals;
+ const L=Object.entries(c.logs).filter(([d])=>d.startsWith(m)).sort((a,b)=>b[0].localeCompare(a[0]));
+ const gb=(l,v,goal,u,lv,txt)=>`<div class="fld"><span>${l}${lv?` · <b class="lv-${lv}" style="text-transform:none;letter-spacing:0">${txt}</b>`:''}</span><div class="row" style="flex-wrap:nowrap"><div class="bar ${lv||(v>=goal?'ok':'')} grow"><i style="width:${goal?Math.min(100,v/goal*100):0}%"></i></div><span class="num" style="font-size:12px;white-space:nowrap">${u(v)} / ${u(goal)}</span></div></div>`;
+ return `<div class="pagehead"><div class="botcard">${av(c.name,hcol(c.name),60)}<div><div class="eyebrow">${esc(monthName(m))} · agent ${esc(c.agent||'—')}</div><h2>${esc(c.name)}</h2><p><a href="https://www.tiktok.com/@${encodeURIComponent(c.handle)}" target="_blank" rel="noopener" style="color:var(--info)">@${esc(c.handle)}</a> · ${fmt(c.followers)} abonnés · <span class="tier" style="color:${t[1]};background:${t[1]}22">${t[0]}</span></p></div></div>
+ <div class="row"><button class="btn gold" data-act="syncOne" data-id="${c.id}" ${SYNC[c.id]?.busy?'disabled':''}>${ic('users')}${SYNC[c.id]?.busy?'Synchro…':'Synchroniser @'+esc(c.handle)}</button><button class="btn" data-act="pickCreator" data-id="">Retour</button>${isAdmin()?`<button class="btn danger icon" data-act="delCreator" data-id="${c.id}" aria-label="Supprimer le créateur" title="Supprimer">${ic('trash')}</button>`:''}</div></div>
+ <div class="callout" ${SYNC[c.id]?.err?'style="color:var(--bad);border-color:rgba(242,84,91,.4)"':''}>${SYNC[c.id]?.busy?esc(SYNC[c.id].msg):SYNC[c.id]?.err?esc(SYNC[c.id].err):`Profil TikTok : ${c.tt?`<b>${fmt(c.followers)}</b> abonnés · <b>${fmt(c.tt.likes)}</b> j'aime · ${c.tt.videos!=null?`<b>${fmt(c.tt.videos)}</b> vidéos · `:''}${fmt(c.tt.following)} abonnements${c.tt.verified?' · compte vérifié':''} · mis à jour ${ago(c.tt.at)}`:'pas encore synchronisé'} · Stats du mois : ${s.src==='backstage'?`<b>Backstage</b>, ${ago(s.bsAt)}`:'saisie manuelle ou CSV'}`}${c.tt?.bio?`<div style="margin-top:4px;color:var(--faint)">${esc(c.tt.bio)}</div>`:''}</div>
+ <div class="kpis"><div class="kpi gold"><span>Diamants</span><b>${fmt(s.dia)}</b><small>≈ ${fmt(s.usd)} $</small></div><div class="kpi"><span>Heures de live</span><b>${fmt1(s.hours)} h</b><small>${s.live} jours en live</small></div><div class="kpi"><span>Jours validés</span><b>${s.valid}</b><small>série max ${s.streak} j</small></div><div class="kpi"><span>Diamants / heure</span><b>${fmt(s.perH)}</b><small>moyenne du mois</small></div><div class="kpi"><span>Matchs PK</span><b>${fmt(s.matches)}</b><small>${fmt(s.fol)} abonnés gagnés</small></div><div class="kpi"><span>Meilleur jour</span><b>${s.best?fmt(s.best[1].diamonds):'–'}</b><small>${s.best?new Date(s.best[0]).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}):'aucun live'} · pic ${fmt(s.peak)} spect.</small></div></div>
+ <section class="card"><h3>Diamants par jour</h3><p class="sub">Survole une barre pour le détail.</p>${chart(c,m)}</section>
+ <div class="grid2"><section class="card"><h3>Objectifs du mois</h3><p class="sub">Heures : rouge sous 20 h, bleu à 20 h, vert au-delà de 21 h. Jours validés : rouge sous 8, vert à partir de 8.</p><div class="list" style="gap:14px">${gb('Jours validés',s.valid,g.days,fmt,lvlD(s.valid),LVTXT.d[lvlD(s.valid)])}${gb('Heures de live',s.hours,g.hours,v=>fmt1(v)+' h',lvlH(s.hours),LVTXT.h[lvlH(s.hours)])}${gb('Diamants',s.dia,g.diamonds,fmt)}</div>
+ <div class="grid3" style="margin-top:14px"><label class="fld"><span>Jours</span><input type="number" class="in" data-bind="${P}.goals.days" data-rr value="${g.days}"></label><label class="fld"><span>Heures</span><input type="number" class="in" data-bind="${P}.goals.hours" data-rr value="${g.hours}"></label><label class="fld"><span>Diamants</span><input type="number" class="in" data-bind="${P}.goals.diamonds" data-rr value="${g.diamonds}"></label></div></section>
+ <section class="card"><h3>Fiche</h3><p class="sub">Infos de suivi du créateur.</p><div class="grid2"><label class="fld"><span>Nom</span><input class="in" data-bind="${P}.name" value="${esc(c.name)}" data-rr></label><label class="fld"><span>Pseudo TikTok</span><input class="in" data-bind="${P}.handle" value="${esc(c.handle)}" data-rr></label><label class="fld"><span>Abonnés</span><input type="number" class="in" data-bind="${P}.followers" data-rr value="${c.followers}"></label><label class="fld"><span>Agent</span><input class="in" data-bind="${P}.agent" value="${esc(c.agent)}"></label><label class="fld"><span>Dans l'agence depuis</span><input type="date" class="in" data-bind="${P}.since" value="${esc(c.since)}"></label></div><label class="fld" style="margin-top:12px"><span>Notes</span><textarea class="in" data-bind="${P}.notes" placeholder="Points forts, horaires préférés, axes d'amélioration…">${esc(c.notes)}</textarea></label></section></div>
+ <section class="card"><h3>Ajouter une journée de live</h3><p class="sub">Une date déjà saisie est remplacée.</p><form data-form="addDay" class="row" style="align-items:flex-end"><label class="fld"><span>Date</span><input type="date" class="in" name="d" value="${today()}" required></label><label class="fld"><span>Heures</span><input type="number" step="0.25" min="0" class="in" name="h" style="width:100px" required></label><label class="fld"><span>Diamants</span><input type="number" min="0" class="in" name="dia" style="width:130px" required></label><label class="fld"><span>Matchs PK</span><input type="number" min="0" class="in" name="mt" style="width:100px" value="0"></label><label class="fld"><span>Abonnés +</span><input type="number" min="0" class="in" name="f" style="width:100px" value="0"></label><label class="fld"><span>Pic spect.</span><input type="number" min="0" class="in" name="v" style="width:100px" value="0"></label><button class="btn gold">Enregistrer</button></form></section>
+ <section><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Statut</th><th class="r">Heures</th><th class="r">Diamants</th><th class="r">Diam./h</th><th class="r">Matchs PK</th><th class="r">Abonnés +</th><th class="r">Pic spect.</th><th></th></tr></thead><tbody>
+ ${L.map(([d,l])=>{const lp=`${P}.logs.${d}`;const ok=(+l.hours||0)>=S.settings.validHours;return `<tr><td class="num">${new Date(d).toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td><span class="pill ${ok?'p-ok':'p-warn'}">${ok?'Validé':'Trop court'}</span></td><td class="r"><input type="number" step="0.25" class="in num" data-bind="${lp}.hours" data-rr value="${l.hours}"></td><td class="r"><input type="number" class="in num" data-bind="${lp}.diamonds" data-rr value="${l.diamonds}"></td><td class="r num">${fmt(l.hours?l.diamonds/l.hours:0)}</td><td class="r"><input type="number" class="in num" style="width:70px" data-bind="${lp}.matches" data-rr value="${l.matches||0}"></td><td class="r"><input type="number" class="in num" style="width:80px" data-bind="${lp}.followers" data-rr value="${l.followers||0}"></td><td class="r"><input type="number" class="in num" style="width:80px" data-bind="${lp}.viewers" data-rr value="${l.viewers||0}"></td><td><button class="btn sm icon danger" data-act="delDay" data-d="${d}" aria-label="Supprimer la journée">${ic('trash')}</button></td></tr>`}).join('')||`<tr><td colspan="9" class="empty">Aucun live saisi en ${esc(monthName(m))}.</td></tr>`}</tbody></table></div></section>`}
+
+/* ===================== RedM / FiveM ===================== */
+const ST={online:['En ligne','p-ok'],maintenance:['Maintenance','p-warn'],closed:['Fermé','p-bad']};
+const PS={ok:['Autorisé','p-ok'],wait:['En attente','p-warn'],refused:['Refusé','p-mute'],banned:['Banni','p-bad']};
+function srvLog(k,t){const s=S.servers[k];s.log.unshift({t,ts:Date.now(),by:me().name});s.log.length=Math.min(s.log.length,150);audit(`${k==='redm'?'RedM':'FiveM'} : ${t}`)}
+function whoCan(s){const staff=s.players.filter(p=>p.staff&&p.status!=='banned').length;const ok=s.players.filter(p=>p.status==='ok').length;
+ if(s.status==='closed')return ['Personne ne peut se connecter','Le serveur est fermé.'];
+ if(s.status==='maintenance'||s.crisis)return [`Staff uniquement (${staff})`,s.status==='maintenance'?'Maintenance en cours : les joueurs voient le message ci-dessous.':'Mode crise actif : accès coupé pour les joueurs le temps du bug.'];
+ if(s.whitelist)return [`${ok} joueurs autorisés`,'Whitelist active : seuls les joueurs validés entrent.'];
+ return ['Tout le monde sauf les bannis','Serveur ouvert au public.']}
+function serverMain(k){const s=S.servers[k];const nm=k==='redm'?'RedM':'FiveM';
+ const head=`<header class="main-head"><button class="menubtn" data-act="openNav" aria-label="Menu">${ic('menu')}</button><span class="mono" style="font:700 12px var(--f-display);color:var(--gold)">${k==='redm'?'RDM':'5M'}</span><h2>${nm} · ${esc(s.name)}</h2><span class="grow"></span>${can(me(),k)?`<span class="pill ${ST[s.status][1]}">${ST[s.status][0]}</span>`:''}</header>`;
+ if(!can(me(),k))return head+`<div class="main-body"><div class="locked"><div class="big">${ic('lock')}</div><h2>Accès réservé</h2><p>Le panel ${nm} permet de couper ou rouvrir l'accès au serveur en cas de bug. Il faut un rôle avec la permission « Panel ${nm} ». Demande à un admin.</p></div></div>`;
+ const P=`servers.${k}`;const tab=S.ui.srv;let body='';
+ const cnt=st=>s.players.filter(p=>p.status===st).length;
+ if(tab==='overview'){const w=whoCan(s);body=`<section class="card srvhero"><div><div class="eyebrow">Statut du serveur</div><div class="status-big">${ST[s.status][0]}</div><div class="row" style="color:var(--muted)"><span class="num">${s.status==='online'?s.online:0} / ${s.slots} joueurs</span><span>·</span><code>connect ${esc(s.ip)}</code><button class="btn sm icon" data-act="copy" data-t="connect ${esc(s.ip)}" aria-label="Copier l'adresse" title="Copier">${ic('copy')}</button></div></div>
+  <div class="seg" role="group" aria-label="Statut">${Object.entries(ST).map(([v,[l]])=>`<button class="s-${v} ${s.status===v?'on':''}" data-act="srvStatus" data-v="${v}">${l}</button>`).join('')}</div></section>
+  <div class="who-can">${ic('shield')}<div><b>Qui peut se connecter maintenant : ${esc(w[0])}</b><div style="color:var(--muted);font-size:13px">${esc(w[1])}</div></div></div>
+  <div class="kpis"><div class="kpi"><span>Autorisés</span><b style="color:var(--ok)">${cnt('ok')}</b></div><div class="kpi"><span>En attente</span><b style="color:var(--warn)">${cnt('wait')}</b></div><div class="kpi"><span>Bannis</span><b style="color:var(--bad)">${cnt('banned')}</b></div><div class="kpi"><span>Bugs ouverts</span><b>${s.incidents.filter(x=>x.status!=='résolu').length}</b></div></div>
+  <section class="card"><h3>Contrôle des accès</h3><p class="sub">Coupe l'accès en un clic si le serveur bug, puis rouvre quand c'est réglé.</p>
+  <div class="list" style="gap:14px"><label class="sw"><input type="checkbox" data-bind="${P}.crisis" data-rr data-log="${k}" ${s.crisis?'checked':''}><span><b>Mode crise</b> · seul le staff peut se connecter</span></label><label class="sw"><input type="checkbox" data-bind="${P}.whitelist" data-rr data-log="${k}" ${s.whitelist?'checked':''}><span><b>Whitelist</b> · seuls les joueurs autorisés entrent</span></label></div>
+  <div class="row" style="margin-top:16px"><button class="btn danger" data-act="lockdown">${ic('lock')}Tout couper (bug)</button><button class="btn ok" data-act="reopen">${ic('check')}Rouvrir normalement</button><button class="btn" data-act="approveAll">Valider toutes les demandes</button></div></section>
+  <section class="card"><h3>Réglages</h3><p class="sub">Infos de connexion et message affiché pendant la maintenance.</p><div class="grid3"><label class="fld"><span>Nom</span><input class="in" data-bind="${P}.name" value="${esc(s.name)}" data-rr></label><label class="fld"><span>Adresse IP:port</span><input class="in" data-bind="${P}.ip" value="${esc(s.ip)}" data-rr></label><label class="fld"><span>Places</span><input type="number" class="in" data-bind="${P}.slots" value="${s.slots}" data-rr></label><label class="fld"><span>Joueurs connectés</span><input type="number" class="in" data-bind="${P}.online" value="${s.online}" data-rr></label></div><label class="fld" style="margin-top:12px"><span>Message de maintenance</span><textarea class="in" data-bind="${P}.maintMsg" placeholder="Ex : correctif en cours, retour vers 22h.">${esc(s.maintMsg)}</textarea></label></section>`}
+ if(tab==='access'){const f=S.ui.filter,q=S.ui.q.toLowerCase();const list=s.players.filter(p=>(f==='all'||p.status===f||(f==='staff'&&p.staff))&&(!q||(p.name+p.discord+p.ident).toLowerCase().includes(q)));
+  body=`<section class="card"><h3>Ajouter un joueur</h3><p class="sub">Identifiant ${k==='redm'?'Steam (steam:…)':'Rockstar (license:…)'} pour la whitelist.</p><form data-form="addPlayer" class="row" style="align-items:flex-end"><label class="fld grow"><span>Pseudo RP</span><input class="in" name="n" required></label><label class="fld grow"><span>Discord</span><input class="in" name="dc"></label><label class="fld grow"><span>Identifiant</span><input class="in" name="id" placeholder="${k==='redm'?'steam:110000…':'license:…'}"></label><label class="fld"><span>Statut</span><select class="in" name="st">${opt([['ok','Autorisé'],['wait','En attente']],'ok')}</select></label><button class="btn gold">Ajouter</button></form></section>
+  <div class="row"><div class="subnav">${[['all','Tous'],['ok','Autorisés'],['wait','En attente'],['banned','Bannis'],['refused','Refusés'],['staff','Staff']].map(([v,l])=>`<button class="fchip ${f===v?'on':''}" data-act="filter" data-v="${v}">${l}</button>`).join('')}</div><span class="grow"></span><input class="in" style="max-width:240px" id="pq" placeholder="Rechercher…" value="${esc(S.ui.q)}"></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Joueur</th><th>Discord</th><th>Identifiant</th><th>Statut</th><th>Staff</th><th class="r">Actions</th></tr></thead><tbody>${list.map(p=>`<tr><td><div class="crow">${av(p.name,hcol(p.name),28)}<b>${esc(p.name)}</b></div></td><td>${esc(p.discord||'—')}</td><td class="num" style="font-size:12px">${esc(p.ident||'—')}</td><td><span class="pill ${PS[p.status][1]}">${PS[p.status][0]}</span></td><td><label class="sw"><input type="checkbox" data-act-change="staff" data-id="${p.id}" ${p.staff?'checked':''} aria-label="Staff"></label></td><td class="r"><div class="row" style="justify-content:flex-end;flex-wrap:nowrap">${p.status!=='ok'&&p.status!=='banned'?`<button class="btn sm ok" data-act="pStatus" data-id="${p.id}" data-v="ok">Autoriser</button>`:''}${p.status==='wait'?`<button class="btn sm" data-act="pStatus" data-id="${p.id}" data-v="refused">Refuser</button>`:''}${p.status==='ok'?`<button class="btn sm" data-act="pStatus" data-id="${p.id}" data-v="wait">Suspendre</button>`:''}${p.status==='banned'?`<button class="btn sm" data-act="pStatus" data-id="${p.id}" data-v="ok">Débannir</button>`:`<button class="btn sm danger" data-act="pStatus" data-id="${p.id}" data-v="banned">Bannir</button>`}<button class="btn sm icon" data-act="delPlayer" data-id="${p.id}" aria-label="Retirer">${ic('trash')}</button></div></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Aucun joueur.</td></tr>'}</tbody></table></div>`}
+ if(tab==='incidents'){const SV={critique:'var(--bad)',moyen:'var(--warn)',faible:'var(--info)'};
+  body=`<section class="card"><h3>Signaler un bug</h3><p class="sub">Un bug critique peut couper l'accès automatiquement.</p><form data-form="addInc" class="list"><div class="grid3"><label class="fld"><span>Titre</span><input class="in" name="t" required></label><label class="fld"><span>Gravité</span><select class="in" name="sev">${opt([['faible','Faible'],['moyen','Moyen'],['critique','Critique']],'moyen')}</select></label><label class="fld"><span>Catégorie</span><select class="in" name="cat">${opt(['Crash','Connexion','Script','Performance','Économie','Triche','Autre'].map(x=>[x,x]),'Script')}</select></label></div><label class="fld"><span>Description</span><textarea class="in" name="d"></textarea></label><div class="row"><label class="sw"><input type="checkbox" name="lock"><span>Passer en mode crise (staff uniquement)</span></label><span class="grow"></span><button class="btn gold">Signaler</button></div></form></section>
+  <div class="list">${s.incidents.map(x=>`<div class="inc"><div class="stripe" style="background:${SV[x.sev]}"></div><div class="ib"><div class="row"><b class="grow">${esc(x.title)}</b><span class="chip">${esc(x.cat)}</span><span class="chip" style="color:${SV[x.sev]}">${esc(x.sev)}</span></div>${x.desc?`<p>${esc(x.desc)}</p>`:''}<div class="row"><span style="color:var(--faint);font-size:12px">${new Date(x.date).toLocaleDateString('fr-FR')}</span><span class="grow"></span><select class="in" style="width:auto" data-act-change="incStatus" data-id="${x.id}">${opt([['ouvert','Ouvert'],['en cours','En cours'],['résolu','Résolu']],x.status)}</select><button class="btn sm icon" data-act="delInc" data-id="${x.id}" aria-label="Supprimer">${ic('trash')}</button></div></div></div>`).join('')||'<div class="card empty">Aucun incident signalé.</div>'}</div>`}
+ if(tab==='log')body=`<div class="loglist">${s.log.map(l=>`<div><time>${tfmt(l.ts)}</time><span><b>${esc(l.by)}</b> · ${esc(l.t)}</span></div>`).join('')||'<div><span style="color:var(--muted)">Aucune action pour l\'instant.</span></div>'}</div>`;
+ return head+`<div class="main-body"><div class="wrap">${body}</div></div>`}
+
+/* ===================== Connexions ===================== */
+let CONN={loaded:false,loading:false,busy:false,pending:null,oauth:false,err:''};
+function loadConn(){if(CONN.loading)return;CONN.loading=true;api('/api/connections').then(j=>{Object.assign(CONN,{loaded:true,loading:false,pending:j.pending,oauth:j.oauth})}).catch(e=>{CONN.loading=false;CONN.err=e.message}).finally(()=>{CONN.loading=false;render()})}
+const ttTile=(l,v)=>`<div class="kpi"><span>${l}</span><b>${v==null?'–':fmt(v)}</b></div>`;
+function connectionsMain(){const head=`<header class="main-head"><button class="menubtn" data-act="openNav" aria-label="Menu">${ic('menu')}</button>${ic('link')}<h2>Connexions</h2><span class="grow"></span></header>`;
+ if(!CONN.loaded){loadConn();return head+`<div class="main-body"><div class="wrap"><div class="card empty">Chargement de tes connexions…</div></div></div>`}
+ const t=me().tiktok;let body;
+ if(t){body=`<section class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="botcard">${t.avatar?`<img src="${esc(t.avatar)}" alt="" width="58" height="58" style="border-radius:50%;flex:none;object-fit:cover" referrerpolicy="no-referrer" onerror="this.replaceWith(document.createRange().createContextualFragment(av('${esc(t.handle)}','#FF5FA8',58)))">`:av(t.handle,'#FF5FA8',58)}<div><div class="eyebrow">TikTok · ${t.method==='oauth'?'connexion officielle':'vérifié par la bio'}</div><h2 style="font:700 20px var(--f-display);margin:4px 0 0">${esc(t.name||t.handle)}${t.verified?' <span class="pill p-info" style="vertical-align:middle">vérifié</span>':''}</h2><p style="margin:2px 0 0"><a href="https://www.tiktok.com/@${encodeURIComponent(t.handle)}" target="_blank" rel="noopener" style="color:var(--info)">@${esc(t.handle)}</a> · mis à jour ${ago(t.updatedAt)}</p></div></div>
+  <div class="row"><button class="btn" data-act="ttRefresh" ${CONN.busy?'disabled':''}>${CONN.busy?'Actualisation…':'Actualiser'}</button><button class="btn danger" data-act="ttUnlink">Déconnecter</button></div></div>
+  ${t.bio?`<p style="margin:14px 0 0;color:var(--muted)">${esc(t.bio)}</p>`:''}</section>
+  <div class="kpis">${ttTile('Abonnés',t.followers)}${ttTile('J\'aime',t.likes)}${ttTile('Vidéos',t.videos)}${ttTile('Abonnements',t.following)}</div>
+  <p class="callout" style="margin:0">Ton @ et tes abonnés sont visibles sur ton profil. Si l'agence te suit dans l'onglet Créateurs avec ce @, ta fiche est mise à jour automatiquement.${t.method==='bio'?' Tu peux retirer le code de ta bio TikTok.':''}</p>`}
+ else{const p=CONN.pending;
+  body=`<section class="card"><h3>Connecter ton compte TikTok</h3><p class="sub">Choisis une méthode. Ton mot de passe TikTok n'est jamais demandé.</p>
+  ${CONN.oauth?`<div class="list" style="gap:10px"><a class="btn gold" href="/api/tiktok/oauth/start" style="text-decoration:none;width:fit-content">${ic('link')}Se connecter avec TikTok</a><p style="margin:0;color:var(--faint);font-size:12px">Tu valides l'accès sur TikTok puis tu reviens ici automatiquement.</p></div><div class="cat" style="padding-left:0">Ou par la bio</div>`:''}
+  ${p?`<div class="list" style="gap:12px"><p style="margin:0">1. Ajoute ce code dans la bio de <b>@${esc(p.handle)}</b> sur TikTok :</p><div class="row"><code style="font-size:20px;padding:8px 14px;letter-spacing:.08em">${esc(p.code)}</code><button class="btn sm icon" data-act="copy" data-t="${esc(p.code)}" aria-label="Copier le code" title="Copier">${ic('copy')}</button></div><p style="margin:0">2. Enregistre ta bio, puis clique sur vérifier. Tu pourras retirer le code juste après.</p>
+   ${CONN.err?`<div class="auth-err">${esc(CONN.err)}</div>`:''}<div class="row"><button class="btn gold" data-act="ttCheck" ${CONN.busy?'disabled':''}>${CONN.busy?'Vérification…':'J\'ai ajouté le code, vérifier'}</button><button class="btn" data-act="ttCancel">Changer de compte</button></div></div>`
+  :`<form data-form="ttStart" class="row" style="align-items:flex-end"><label class="fld grow" style="max-width:320px"><span>Ton @ TikTok</span><input class="in" name="h" placeholder="@pseudo" required></label><button class="btn ${CONN.oauth?'':'gold'}" ${CONN.busy?'disabled':''}>Continuer</button></form>${CONN.err?`<div class="auth-err" style="margin-top:12px">${esc(CONN.err)}</div>`:''}<p style="margin:12px 0 0;color:var(--faint);font-size:12px">On te donne un code à mettre dans ta bio pour prouver que le compte est à toi.</p>`}</section>`}
+ return head+`<div class="main-body"><div class="wrap" style="max-width:820px"><div class="pagehead"><div><div class="eyebrow">Ton compte</div><h2>Connexions</h2><p>Relie tes réseaux à ton profil Star Discussion.</p></div></div>${body}</div></div>`}
+
+/* ===================== Modales ===================== */
+function modalHTML(){const M=S.ui.modal;if(!M)return '';
+ if(M.t==='login')return `<div class="ov" data-act="closeModal"><form class="modal" data-form="login" data-stop><div class="row">${ic('shield')}<h3>Connexion admin</h3></div><p style="margin:0;color:var(--muted)">Entre le code admin pour ouvrir le panel (rôles, membres, salons) et les onglets RedM et FiveM.</p><label class="fld"><span>Code admin</span><input class="in num" type="password" id="code" inputmode="numeric" autofocus></label><p class="callout" style="margin:0">Code par défaut : <b>0000</b>. Change-le ensuite dans Admin → Sécurité.</p><div class="actions"><button type="button" class="btn" data-act="closeModal">Annuler</button><button class="btn gold">Se connecter</button></div></form></div>`;
+ if(M.t==='channel'){const c=M.id?chan(M.id):null;return `<div class="ov" data-act="closeModal"><form class="modal" data-form="channel" data-stop><h3>${c?'Réglages du salon':'Créer un salon'}</h3>
+  ${c?'':`<div class="fld"><span>Type</span><div class="seg" style="width:fit-content"><button type="button" class="${M.type!=='voice'?'on s-online':''}" data-act="chType" data-v="text">${'# Textuel'}</button><button type="button" class="${M.type==='voice'?'on s-online':''}" data-act="chType" data-v="voice">Vocal</button></div></div>`}
+  <label class="fld"><span>Nom</span><input class="in" name="n" value="${esc(c?.name||'')}" required autofocus></label>
+  <label class="fld"><span>Catégorie</span><select class="in" name="cat">${opt(S.cats.map(k=>[k.id,k.name]),c?.cat||M.cat)}</select></label>
+  ${(c?.type||M.type)!=='voice'?`<label class="fld"><span>Sujet</span><input class="in" name="topic" value="${esc(c?.topic||'')}"></label>`:''}
+  <div class="actions">${c&&can(me(),'channels')?`<button type="button" class="btn danger" data-act="delChannel" data-id="${c.id}" style="margin-right:auto">Supprimer</button>`:''}<button type="button" class="btn" data-act="closeModal">Annuler</button><button class="btn gold">${c?'Enregistrer':'Créer'}</button></div></form></div>`}
+ if(M.t==='profile'){const m=mem(M.id);if(!m)return '';const adm=m.id!==ME&&!m.roles.includes('r_fond');
+  return `<div class="ov" data-act="closeModal"><div class="modal" data-stop><div class="botcard">${av(m.name,hcol(m.name),60,{status:m.status})}<div><h3 style="color:${esc(mcol(m))}">${esc(m.name)}</h3><p style="margin:2px 0 0;color:var(--muted)">Niveau ${m.level||0} · <span class="num">${m.xp||0} XP</span></p>${m.tiktok?`<p style="margin:4px 0 0"><a href="https://www.tiktok.com/@${encodeURIComponent(m.tiktok.handle)}" target="_blank" rel="noopener" style="color:var(--info)">TikTok @${esc(m.tiktok.handle)}</a> · <span class="num">${fmt(m.tiktok.followers)}</span> abonnés</p>`:''}</div></div>
+  ${m.id===ME?`<form data-form="rename" class="row" style="align-items:flex-end"><label class="fld grow"><span>Pseudo</span><input class="in" name="n" value="${esc(m.name)}" minlength="2" maxlength="24" required></label><button class="btn">Renommer</button></form><p style="margin:0;color:var(--faint);font-size:12px">Connecté avec ${esc(ACCOUNT?.email||'')}</p>`:''}
+  <div class="fld"><span>Rôles</span>${can(me(),'roles')?`<div class="list" style="gap:6px">${S.roles.map(r=>`<label class="sw"><input type="checkbox" data-act-change="toggleRole" data-m="${m.id}" data-r="${r.id}" ${m.roles.includes(r.id)?'checked':''} ${r.id==='r_fond'&&!me().roles.includes('r_fond')?'disabled':''}><span class="chip"><i class="d" style="background:${esc(r.color)}"></i>${esc(r.name)}</span></label>`).join('')}</div>`:`<div class="chips">${m.roles.map(id=>role(id)).filter(Boolean).map(r=>`<span class="chip"><i class="d" style="background:${esc(r.color)}"></i>${esc(r.name)}</span>`).join('')}</div>`}</div>
+  <div class="actions">${m.id===ME?`<button class="btn" data-act="logout" style="margin-right:auto">Se déconnecter</button>`:''}${adm&&can(me(),'kick')?`<button class="btn danger" data-act="kick" data-id="${m.id}">Expulser</button>`:''}${adm&&can(me(),'ban')?`<button class="btn danger" data-act="ban" data-id="${m.id}">Bannir</button>`:''}<button class="btn" data-act="closeModal">Fermer</button></div></div></div>`}
+ if(M.t==='newCreator')return `<div class="ov" data-act="closeModal"><form class="modal" data-form="newCreator" data-stop><h3>Ajouter un créateur</h3><p style="margin:0;color:var(--muted)">Entre juste son @ : nom, abonnés, j'aime et vidéos sont récupérés sur son profil TikTok public.</p><label class="fld"><span>@ TikTok ou lien du profil</span><input class="in" name="h" placeholder="@pseudo" required autofocus></label><label class="fld"><span>Agent (optionnel)</span><input class="in" name="a" value="${esc(me().name)}"></label><div class="actions"><button type="button" class="btn" data-act="closeModal">Annuler</button><button class="btn gold">Ajouter</button></div></form></div>`;
+ if(M.t==='csv')return `<div class="ov" data-act="closeModal"><form class="modal" data-form="csv" data-stop><h3>Importer des stats (CSV)</h3><p style="margin:0;color:var(--muted)">Une ligne par journée : <code>pseudo,date,heures,diamants,matchs,abonnés</code>. Un pseudo inconnu crée le créateur.</p><textarea class="in num" name="csv" rows="8" placeholder="ines.lvx,2026-10-27,2.5,14200,3,120&#10;mehdik_live,2026-10-27,1.25,4100,1,40"></textarea><div class="actions"><button type="button" class="btn" data-act="closeModal">Annuler</button><button class="btn gold">Importer</button></div></form></div>`;
+ if(M.t==='admin')return adminHTML();return ''}
+function adminHTML(){const tab=S.ui.adminTab;const T=[['roles','Rôles','shield'],['members','Membres','users'],['channels','Salons','hash'],['bots','Bots','bot'],['security','Sécurité','lock'],['audit','Journal','gear']];let b='';
+ if(tab==='roles'){const r=role(S.ui.roleSel)||S.roles[0];S.ui.roleSel=r.id;const P=`roles#${r.id}`;
+  b=`<div class="pagehead"><div><div class="eyebrow">Panel admin</div><h2>Rôles</h2><p>L'ordre définit la hiérarchie : le rôle le plus haut donne la couleur du pseudo.</p></div><button class="btn gold" data-act="newRole">${ic('plus')}Nouveau rôle</button></div>
+  <div class="rolegrid"><div class="list" style="gap:4px;align-content:start">${S.roles.map((x,i)=>`<div class="row" style="flex-wrap:nowrap;gap:4px"><button class="si ${x.id===r.id?'on':''}" data-act="roleSel" data-id="${x.id}"><i class="d" style="width:10px;height:10px;border-radius:50%;background:${esc(x.color)};flex:none"></i><span class="t">${esc(x.name)}</span><span class="badge">${S.members.filter(m=>m.roles.includes(x.id)).length}</span></button><button class="btn sm icon" data-act="roleMove" data-id="${x.id}" data-d="-1" ${i===0?'disabled':''} aria-label="Monter">${ic('up')}</button><button class="btn sm icon" data-act="roleMove" data-id="${x.id}" data-d="1" ${i===S.roles.length-1?'disabled':''} aria-label="Descendre">${ic('down')}</button></div>`).join('')}</div>
+  <div class="card"><div class="row" style="align-items:flex-end"><label class="fld grow"><span>Nom du rôle</span><input class="in" data-bind="${P}.name" value="${esc(r.name)}" data-rr></label><label class="fld"><span>Couleur</span><input type="color" class="in" data-bind="${P}.color" value="${esc(r.color)}" data-rr></label>${r.id!=='r_fond'?`<button class="btn danger icon" data-act="delRole" data-id="${r.id}" aria-label="Supprimer le rôle" title="Supprimer">${ic('trash')}</button>`:''}</div>
+  <div style="margin-top:12px">${PERMS.map(([k,l,d])=>`<div class="perm"><div><b>${l}</b><div style="color:var(--muted);font-size:12px">${d}</div></div><label class="sw"><input type="checkbox" data-bind="${P}.perms.${k}" data-rr ${r.perms[k]?'checked':''} ${r.id==='r_fond'?'disabled':''} aria-label="${l}"></label></div>`).join('')}</div></div></div>`}
+ if(tab==='members')b=`<div class="pagehead"><div><div class="eyebrow">Panel admin</div><h2>Membres</h2><p>${S.members.length} membres · ${S.banned.length} bannis</p></div><p class="callout" style="margin:0;max-width:320px">Les nouveaux membres rejoignent en créant un compte avec leur e-mail.</p></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Membre</th><th>Rôles</th><th class="r">Niveau</th><th class="r">Actions</th></tr></thead><tbody>${S.members.map(m=>`<tr><td><div class="crow">${av(m.name,hcol(m.name),28,{status:m.status})}<b style="color:${esc(mcol(m))}">${esc(m.name)}</b></div></td><td><div class="chips" style="flex-wrap:nowrap">${m.roles.map(role).filter(Boolean).map(r=>`<span class="chip"><i class="d" style="background:${esc(r.color)}"></i>${esc(r.name)}</span>`).join('')}</div></td><td class="r num">${m.level||0}</td><td class="r"><div class="row" style="justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="profile" data-id="${m.id}">Rôles</button>${m.id!==ME&&!m.roles.includes('r_fond')?`<button class="btn sm danger" data-act="kick" data-id="${m.id}">Expulser</button><button class="btn sm danger" data-act="ban" data-id="${m.id}">Bannir</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>
+  ${S.banned.length?`<section class="card"><h3>Bannis</h3><div class="list" style="margin-top:10px">${S.banned.map(x=>`<div class="row"><b class="grow">${esc(x.name)}</b><span style="color:var(--muted)">${esc(x.reason||'')}</span><button class="btn sm" data-act="unban" data-id="${esc(x.id)}">Débannir</button></div>`).join('')}</div></section>`:''}`;
+ if(tab==='channels')b=`<div class="pagehead"><div><div class="eyebrow">Panel admin</div><h2>Salons</h2><p>${S.channels.length} salons dans ${S.cats.length} catégories</p></div><form data-form="addCat" class="row"><input class="in" name="n" placeholder="Nouvelle catégorie" required style="max-width:200px"><button class="btn gold">${ic('plus')}Catégorie</button></form></div>
+  ${S.cats.map(k=>`<section class="card"><div class="row"><input class="in grow" data-bind="cats#${k.id}.name" value="${esc(k.name)}" data-rr style="font-weight:800;max-width:300px"><span class="grow"></span><button class="btn sm" data-act="newChannel" data-cat="${k.id}">${ic('plus')}Salon</button><button class="btn sm icon danger" data-act="delCat" data-id="${k.id}" aria-label="Supprimer la catégorie">${ic('trash')}</button></div><div class="list" style="margin-top:10px;gap:4px">${S.channels.filter(c=>c.cat===k.id).map(c=>`<div class="row" style="flex-wrap:nowrap">${ic(c.type==='voice'?'voice':'hash')}<input class="in grow" data-bind="channels#${c.id}.name" value="${esc(c.name)}" data-rr><button class="btn sm icon danger" data-act="delChannel" data-id="${c.id}" aria-label="Supprimer le salon">${ic('trash')}</button></div>`).join('')||'<span style="color:var(--faint)">Vide</span>'}</div></section>`).join('')}`;
+ if(tab==='bots')b=`<div class="pagehead"><div><div class="eyebrow">Panel admin</div><h2>Bots</h2><p>Active ou coupe les bots du serveur.</p></div><button class="btn gold" data-act="newBot">${ic('plus')}Créer un bot</button></div><div class="list">${S.bots.map(x=>`<div class="card row">${av(x.name,x.color,40,{bot:1})}<div class="grow"><b>${esc(x.name)}</b><div style="color:var(--muted);font-size:12px">${x.commands.length} commandes · préfixe ${esc(x.prefix)}</div></div><label class="sw"><input type="checkbox" data-bind="bots#${x.id}.enabled" data-rr ${x.enabled?'checked':''} aria-label="Activer"></label><button class="btn sm" data-act="pickBotGo" data-id="${x.id}">Modifier</button></div>`).join('')}</div>`;
+ if(tab==='security')b=`<div class="pagehead"><div><div class="eyebrow">Panel admin</div><h2>Sécurité</h2><p>Nom du serveur, ton mot de passe et sauvegarde.</p></div></div>
+  ${can(me(),'admin')?'':'<p class="callout" style="margin:0">Seuls les admins peuvent modifier le nom du serveur.</p>'}<section class="card"><h3>Nom du serveur</h3><p class="sub">Affiché en haut à gauche et dans les messages des bots.</p><input class="in" data-bind="settings.serverName" value="${esc(S.settings.serverName)}" data-rr></section>
+  <section class="card"><h3>Accès au panel</h3><p class="sub">Le panel admin s'ouvre pour les rôles qui ont la permission « Administrateur ». Le premier compte créé devient Fondateur.</p></section>
+  <section class="card"><h3>Mon mot de passe</h3><p class="sub">Change le mot de passe de ton compte (${esc(ACCOUNT?.email||'')}).</p><form data-form="password" class="grid2"><label class="fld"><span>Mot de passe actuel</span><input class="in" type="password" name="old" autocomplete="current-password" required></label><label class="fld"><span>Nouveau mot de passe</span><input class="in" type="password" name="pw" autocomplete="new-password" minlength="8" required></label><div><button class="btn gold">Changer le mot de passe</button></div></form></section>
+  <section class="card"><h3>Sauvegarde</h3><p class="sub">Copie toutes les données (salons, bots, créateurs, serveurs) pour les garder ou les transférer.</p><div class="row"><button class="btn" data-act="exportData">${ic('copy')}Copier la sauvegarde</button></div></section>
+  <section class="card"><h3>Session</h3><p class="sub">Les données sont enregistrées sur le serveur et partagées en direct avec tous les membres.</p><div class="row"><button class="btn" data-act="logout">Se déconnecter</button></div></section>`;
+ if(tab==='audit')b=`<div class="pagehead"><div><div class="eyebrow">Panel admin</div><h2>Journal</h2><p>Toutes les actions de modération et d'administration.</p></div></div><div class="loglist">${S.audit.map(l=>`<div><time>${tfmt(l.ts)}</time><span>${esc(l.t)}</span></div>`).join('')||'<div><span style="color:var(--muted)">Rien pour l\'instant.</span></div>'}</div>`;
+ return `<div class="ov" data-act="closeModal"><div class="modal wide" data-stop><nav class="apside"><div class="eyebrow">Admin · ${esc(S.settings.serverName)}</div>${T.map(([k,l,i])=>`<button class="si ${tab===k?'on':''}" data-act="adminTab" data-id="${k}">${ic(i)}<span class="t">${l}</span></button>`).join('')}<span class="grow"></span><button class="si" data-act="closeModal">${ic('x')}<span class="t">Fermer</span></button></nav><div class="apmain">${b}</div></div></div>`}
+let pending=null;
+function ask(text,fn,btn='Confirmer'){pending=fn;$('#confirm-root').innerHTML=`<div class="ov" data-act="cNo"><div class="modal" data-stop><h3>Confirmer</h3><p style="margin:0;color:var(--muted)">${esc(text)}</p><div class="actions"><button class="btn" data-act="cNo">Annuler</button><button class="btn danger" data-act="cYes">${esc(btn)}</button></div></div></div>`}
+
+/* ===================== Rendu global ===================== */
+let lastKey='';
+function render(){if(!S)return;const k=[S.ui.view,S.ui.channel,S.ui.bot,S.ui.creator,S.ui.srv,S.ui.month].join('|');const mb=$('.main-body');const st=mb&&k===lastKey?mb.scrollTop:null;const nearBottom=mb&&mb.id==='chatScroll'&&mb.scrollHeight-mb.scrollTop-mb.clientHeight<140;const ss=$('.side-scroll')?.scrollTop;
+ const v=S.ui.view;const main=v==='forum'?forumMain():v==='bots'?botsMain():v==='creators'?creatorsMain():v==='connections'?connectionsMain():serverMain(v);
+ $('#app').innerHTML=`<div class="nav ${S.ui.navOpen?'open':''}">${rail()}${side()}</div><div class="scrim" data-act="closeNav"></div><main class="main">${main}</main>${membersAside()}`;
+ const nb=$('.main-body');if(nb){if(v==='forum'&&nb.id==='chatScroll'&&(st===null||stick||nearBottom))nb.scrollTop=nb.scrollHeight;else if(st!==null)nb.scrollTop=st}
+ if(ss&&$('.side-scroll'))$('.side-scroll').scrollTop=ss;stick=false;lastKey=k;renderModal()}
+let stick=false;
+function renderModal(){if(!S){$('#modal-root').innerHTML='';return}const am=$('.apmain');const s=am?am.scrollTop:0;$('#modal-root').innerHTML=modalHTML();const n=$('.apmain');if(n)n.scrollTop=s;const af=$('#modal-root [autofocus]');if(af&&document.activeElement===document.body)af.focus()}
+function openModal(m){S.ui.modal=m;renderModal()}
+function closeModal(){S.ui.modal=null;renderModal()}
+
+/* ===================== Événements ===================== */
+function resolve(path){const parts=path.split('.');let o=S;for(let i=0;i<parts.length-1;i++){const [k,id]=parts[i].split('#');o=o?.[k];if(id!==undefined)o=o?.find(x=>x.id===id)}return [o,parts.at(-1)]}
+function onBind(e){const el=e.target;const p=el.dataset?.bind;if(!p)return;if(e.type==='input'&&(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='color'))return;
+ const v=el.type==='checkbox'?el.checked:el.type==='number'?(el.value===''?0:Number(el.value)):el.value;const [o,k]=resolve(p);if(!o)return;o[k]=v;
+ if(el.dataset.log&&e.type==='change')srvLog(el.dataset.log,`${k==='crisis'?'Mode crise':'Whitelist'} ${v?'activé':'désactivé'}`);
+ save();if(e.type==='change'&&el.dataset.rr!==undefined)render()}
+document.addEventListener('input',e=>{if(!S)return;onBind(e);if(e.target.id==='composer')draft=e.target.value;if(e.target.id==='pq'){S.ui.q=e.target.value;const pos=e.target.selectionStart;render();const n=$('#pq');n.focus();n.setSelectionRange(pos,pos)}});
+document.addEventListener('change',e=>{if(!S)return;onBind(e);const el=e.target;const a=el.dataset.actChange;if(!a)return;
+ if(a==='month'&&el.value){S.ui.month=el.value}
+ if(a==='staff'){const p=S.servers[S.ui.view].players.find(x=>x.id===el.dataset.id);p.staff=el.checked;srvLog(S.ui.view,`${p.name} ${el.checked?'ajouté au':'retiré du'} staff`)}
+ if(a==='incStatus'){const x=S.servers[S.ui.view].incidents.find(i=>i.id===el.dataset.id);x.status=el.value;srvLog(S.ui.view,`Bug « ${x.title} » : ${el.value}`)}
+ if(a==='toggleRole'){const m=mem(el.dataset.m);const r=el.dataset.r;act('memberRoles',{id:m.id,roles:el.checked?[...new Set([...m.roles,r])]:m.roles.filter(x=>x!==r)});return}
+ save();render()});
+document.addEventListener('submit',e=>{const f=e.target;const t=f.dataset.form;if(!t||!S)return;e.preventDefault();const d=Object.fromEntries(new FormData(f));
+ if(t==='send'){const inp=$('#composer');const text=inp.value.trim();if(!text)return;const m=me();if(!can(m,'send')){toast('Ton rôle ne permet pas d\'écrire');return}
+  if(text.includes('@everyone')&&!can(m,'everyone')){toast('Il faut la permission @everyone');return}
+  draft='';inp.value='';stick=true;act('send',{ch:S.ui.channel,text});inp.focus();return}
+ if(t==='ttStart'){CONN.busy=true;CONN.err='';render();api('/api/tiktok/bio/start',{handle:d.h}).then(j=>{CONN.pending=j}).catch(x=>{CONN.err=x.message}).finally(()=>{CONN.busy=false;render()});return}
+ if(t==='rename'){api('/api/rename',{username:d.n}).then(()=>{ACCOUNT.username=d.n;toast('Pseudo modifié')}).catch(x=>toast(x.message));return}
+ if(t==='password'){api('/api/password',{old:d.old,password:d.pw}).then(()=>{f.reset();toast('Mot de passe modifié')}).catch(x=>toast(x.message));return}
+ if(t==='channel'){const M=S.ui.modal;if(M.id){const c=chan(M.id);c.name=c.type==='voice'?d.n:slug(d.n);c.cat=d.cat;if(d.topic!==undefined)c.topic=d.topic;audit(`Salon ${c.name} modifié`)}else{const type=M.type||'text';const id=uid();S.channels.push({id,name:type==='voice'?d.n:slug(d.n),type,cat:d.cat,topic:d.topic||''});S.ui.channel=id;S.ui.view='forum';audit(`Salon ${d.n} créé par ${me().name}`)}S.ui.modal=M.back||null;save();render();return}
+ if(t==='newCreator'){const h=cleanHandle(d.h);if(!h){toast('Entre un @ TikTok');return}const ex=S.creators.find(x=>x.handle.toLowerCase()===h.toLowerCase());if(ex){S.ui.creator=ex.id;S.ui.modal=null;render();toast('Créateur déjà suivi');return}const id=uid();const c={id,name:h,handle:h,agent:d.a,followers:0,since:today(),notes:'',logs:{},goals:{days:20,hours:40,diamonds:150000}};S.creators.push(c);S.ui.creator=id;S.ui.modal=null;save();render();syncProfile(c);return}
+ if(t==='csv'){let n=0;for(const line of String(d.csv).split(/\r?\n/)){const p=line.split(/[,;\t]/).map(x=>x.trim());if(p.length<4||!/^\d{4}-\d{2}-\d{2}$/.test(p[1]))continue;let c=S.creators.find(x=>x.handle.toLowerCase()===p[0].replace(/^@/,'').toLowerCase());if(!c){c={id:uid(),name:p[0],handle:p[0].replace(/^@/,''),agent:'',followers:0,since:today(),notes:'',logs:{},goals:{days:20,hours:40,diamonds:150000}};S.creators.push(c)}c.logs[p[1]]={hours:+p[2].replace(',','.')||0,diamonds:+p[3]||0,matches:+p[4]||0,followers:+p[5]||0,viewers:+p[6]||0};n++}S.ui.modal=null;save();render();toast(`${n} journée${n>1?'s':''} importée${n>1?'s':''}`);return}
+ if(t==='addDay'){const c=S.creators.find(x=>x.id===S.ui.creator);c.logs[d.d]={hours:+d.h||0,diamonds:+d.dia||0,matches:+d.mt||0,followers:+d.f||0,viewers:+d.v||0};S.ui.month=d.d.slice(0,7);save();render();toast('Journée enregistrée');return}
+ if(t==='addPlayer'){const s=S.servers[S.ui.view];s.players.unshift({id:uid(),name:d.n,discord:d.dc,ident:d.id,status:d.st,staff:false,date:today()});srvLog(S.ui.view,`${d.n} ajouté (${PS[d.st][0].toLowerCase()})`);save();render();return}
+ if(t==='addInc'){const s=S.servers[S.ui.view];s.incidents.unshift({id:uid(),title:d.t,sev:d.sev,cat:d.cat,desc:d.d,status:'ouvert',date:today()});srvLog(S.ui.view,`Bug signalé : ${d.t} (${d.sev})`);if(d.lock){s.crisis=true;srvLog(S.ui.view,'Mode crise activé suite au bug')}save();render();toast('Bug signalé');return}
+ if(t==='addCat'){S.cats.push({id:uid(),name:d.n});save();render();return}
+});
+const A={
+ view:el=>{S.ui.view=el.dataset.v;S.ui.navOpen=false;if(S.ui.view==='redm'||S.ui.view==='fivem')S.ui.srv=S.ui.srv||'overview'},
+ chan:el=>{S.ui.channel=el.dataset.id;S.ui.navOpen=false;stick=true},
+ openNav:()=>{S.ui.navOpen=true},closeNav:()=>{S.ui.navOpen=false},
+ admin:()=>{if(!isAdmin()){toast('Le panel admin est réservé aux rôles avec la permission Administrateur');return false}S.ui.modal={t:'admin'}},
+ closeModal:(el,e)=>{if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act="closeModal"]')&&!e.target.closest('.si[data-act="closeModal"]'))return false;S.ui.modal=null},
+ adminTab:el=>{S.ui.adminTab=el.dataset.id},
+ profile:el=>{S.ui.modal={t:'profile',id:el.dataset.id}},
+ newChannel:el=>{if(!can(me(),'channels')){toast('Il faut la permission « Gérer les salons »');return false}S.ui.modal={t:'channel',cat:el.dataset.cat,type:'text',back:S.ui.modal?.t==='admin'?{t:'admin'}:null}},
+ chType:el=>{S.ui.modal.type=el.dataset.v},
+ editChannel:el=>{S.ui.modal={t:'channel',id:el.dataset.id}},
+ delChannel:el=>{const c=chan(el.dataset.id);const back=S.ui.modal?.t==='admin';ask(`Supprimer le salon « ${c.name} » et tous ses messages ?`,()=>{S.channels=S.channels.filter(x=>x.id!==c.id);delete S.messages[c.id];delete S.voice[c.id];if(S.ui.inVoice===c.id)S.ui.inVoice=null;if(S.ui.channel===c.id)S.ui.channel=S.channels.find(x=>x.type==='text')?.id;audit(`Salon ${c.name} supprimé`);S.ui.modal=back?{t:'admin'}:null},'Supprimer');return false},
+ delCat:el=>{const k=S.cats.find(x=>x.id===el.dataset.id);ask(`Supprimer la catégorie « ${k.name} » ? Ses salons passent dans la première catégorie.`,()=>{S.cats=S.cats.filter(x=>x.id!==k.id);if(!S.cats.length)S.cats.push({id:uid(),name:'Général'});S.channels.forEach(c=>{if(c.cat===k.id)c.cat=S.cats[0].id})},'Supprimer');return false},
+ joinVoice:el=>{if(!can(me(),'voice')){toast('Ton rôle ne permet pas le vocal');return false}for(const k in S.voice)S.voice[k]=S.voice[k].filter(x=>x!==ME);(S.voice[el.dataset.id]||=[]).push(ME);S.ui.inVoice=el.dataset.id;act('voice',{ch:el.dataset.id})},
+ leaveVoice:()=>{for(const k in S.voice)S.voice[k]=S.voice[k].filter(x=>x!==ME);S.ui.inVoice=null;S.ui.muted=false;S.ui.deaf=false;act('voice',{ch:null})},
+ mute:()=>{S.ui.muted=!S.ui.muted},deaf:()=>{S.ui.deaf=!S.ui.deaf;if(S.ui.deaf)S.ui.muted=true},
+ vote:el=>{const m=S.messages[el.dataset.ch].find(x=>x.id===el.dataset.m);const i=+el.dataset.i;const had=m.poll.opts[i].v.includes(ME);m.poll.opts.forEach(o=>o.v=o.v.filter(x=>x!==ME));if(!had)m.poll.opts[i].v.push(ME);act('vote',{ch:el.dataset.ch,m:el.dataset.m,i})},
+ delMsg:el=>{S.messages[el.dataset.ch]=S.messages[el.dataset.ch].filter(x=>x.id!==el.dataset.m);act('delMsg',{ch:el.dataset.ch,m:el.dataset.m})},
+ kick:el=>{const m=mem(el.dataset.id);ask(`Expulser ${m.name} du serveur ? Il pourra revenir en se reconnectant.`,()=>{act('kick',{id:m.id});S.ui.modal=S.ui.modal?.t==='profile'?null:S.ui.modal},'Expulser');return false},
+ ban:el=>{const m=mem(el.dataset.id);ask(`Bannir ${m.name} ? Son compte ne pourra plus se connecter.`,()=>{act('ban',{id:m.id});S.ui.modal=S.ui.modal?.t==='profile'?null:S.ui.modal},'Bannir');return false},
+ unban:el=>{act('unban',{id:el.dataset.id});return false},
+ ttCheck:()=>{CONN.busy=true;CONN.err='';api('/api/tiktok/bio/check',{}).then(()=>{CONN.pending=null;toast('Compte TikTok connecté')}).catch(x=>{CONN.err=x.message}).finally(()=>{CONN.busy=false;render()})},
+ ttCancel:()=>{CONN.pending=null;CONN.err=''},
+ ttRefresh:()=>{CONN.busy=true;api('/api/tiktok/refresh',{}).then(()=>toast('Stats TikTok à jour')).catch(x=>toast(x.message)).finally(()=>{CONN.busy=false;render()})},
+ ttUnlink:()=>{ask('Déconnecter ton compte TikTok de Star Discussion ?',()=>{api('/api/tiktok/unlink',{}).then(()=>toast('TikTok déconnecté')).catch(x=>toast(x.message))},'Déconnecter');return false},
+ rejoin:()=>{$('#app').innerHTML='<div class="boot">Connexion au serveur…</div>';connect();return false},
+ pickBot:el=>{S.ui.bot=el.dataset.id;S.ui.navOpen=false},
+ pickBotGo:el=>{S.ui.bot=el.dataset.id;S.ui.view='bots';S.ui.modal=null},
+ newBot:()=>{const id=uid();S.bots.push({id,name:'Nouveau bot',color:AVC[S.bots.length%AVC.length],prefix:'?',status:'Prêt à servir',enabled:true,commands:[{id:uid(),on:true,trigger:'ping',type:'prefix',desc:'Vérifier que le bot répond',role:'',actions:[{id:uid(),kind:'reply',value:'Pong ! {user}'}]}],welcome:{on:false,channel:'bienvenue',text:'Bienvenue {user} !',role:''},automod:{on:false,words:'',warn:'{user}, message supprimé.',action:'delete'},levels:{on:false,channel:'',text:'{user} passe niveau {level} !'},schedules:[]});S.ui.bot=id;S.ui.view='bots';S.ui.modal=null;S.ui.navOpen=false;audit('Nouveau bot créé')},
+ delBot:el=>{const b=bot(el.dataset.id);ask(`Supprimer le bot ${b.name} et toutes ses commandes ?`,()=>{S.bots=S.bots.filter(x=>x.id!==b.id);S.ui.bot=S.bots[0]?.id;audit(`Bot ${b.name} supprimé`)},'Supprimer');return false},
+ testBot:()=>{S.ui.view='forum';S.ui.channel=S.channels.find(c=>c.id==='general')?.id||S.channels.find(c=>c.type==='text').id;draft=(bot(S.ui.bot)?.prefix||'!')+'help';stick=true},
+ newCmd:()=>{bot(S.ui.bot).commands.unshift({id:uid(),on:true,trigger:'commande',type:'prefix',desc:'',role:'',actions:[{id:uid(),kind:'reply',value:'Réponse de {user}'}]})},
+ delCmd:el=>{const b=bot(S.ui.bot);b.commands=b.commands.filter(c=>c.id!==el.dataset.id)},
+ addAction:el=>{bot(S.ui.bot).commands.find(c=>c.id===el.dataset.id).actions.push({id:uid(),kind:'reply',value:''})},
+ delAction:el=>{const c=bot(el.dataset.b).commands.find(x=>x.id===el.dataset.c);c.actions=c.actions.filter(a=>a.id!==el.dataset.a)},
+ newSched:()=>{bot(S.ui.bot).schedules.push({id:uid(),on:true,channel:'general',text:'Message automatique',every:30,last:Date.now()})},
+ delSched:el=>{const b=bot(S.ui.bot);b.schedules=b.schedules.filter(s=>s.id!==el.dataset.id)},
+ pickCreator:el=>{S.ui.creator=el.dataset.id||null;S.ui.navOpen=false},
+ newCreator:()=>{S.ui.modal={t:'newCreator'}},
+ syncOne:el=>{syncProfile(S.creators.find(x=>x.id===el.dataset.id));return false},syncAll:()=>{syncAllProfiles();return false},importCsv:()=>{S.ui.modal={t:'csv'}},
+ delCreator:el=>{const c=S.creators.find(x=>x.id===el.dataset.id);ask(`Supprimer ${c.name} et tout son historique ?`,()=>{S.creators=S.creators.filter(x=>x.id!==c.id);S.ui.creator=null},'Supprimer');return false},
+ delDay:el=>{delete S.creators.find(x=>x.id===S.ui.creator).logs[el.dataset.d]},
+ sort:el=>{const k=el.dataset.k;S.ui.sort=S.ui.sort.k===k?{k,d:-S.ui.sort.d}:{k,d:k==='name'?1:-1}},
+ srvTab:el=>{S.ui.srv=el.dataset.id;S.ui.navOpen=false},
+ srvStatus:el=>{const s=S.servers[S.ui.view];s.status=el.dataset.v;srvLog(S.ui.view,`Statut : ${ST[s.status][0]}`)},
+ lockdown:()=>{const k=S.ui.view;ask('Couper l\'accès à tous les joueurs ? Seul le staff pourra se connecter.',()=>{const s=S.servers[k];s.crisis=true;s.status='maintenance';s.maintMsg=s.maintMsg||'Bug en cours de correction, retour très vite.';srvLog(k,'Accès coupé (bug) : maintenance + mode crise')},'Tout couper');return false},
+ reopen:()=>{const s=S.servers[S.ui.view];s.crisis=false;s.status='online';s.maintMsg='';srvLog(S.ui.view,'Serveur rouvert normalement');toast('Serveur rouvert')},
+ approveAll:()=>{const s=S.servers[S.ui.view];const w=s.players.filter(p=>p.status==='wait');w.forEach(p=>p.status='ok');srvLog(S.ui.view,`${w.length} demande(s) validée(s)`);toast(`${w.length} joueur(s) autorisé(s)`)},
+ filter:el=>{S.ui.filter=el.dataset.v},
+ pStatus:el=>{const p=S.servers[S.ui.view].players.find(x=>x.id===el.dataset.id);p.status=el.dataset.v;srvLog(S.ui.view,`${p.name} : ${PS[p.status][0].toLowerCase()}`)},
+ delPlayer:el=>{const s=S.servers[S.ui.view];const p=s.players.find(x=>x.id===el.dataset.id);s.players=s.players.filter(x=>x!==p);srvLog(S.ui.view,`${p.name} retiré de la liste`)},
+ delInc:el=>{const s=S.servers[S.ui.view];s.incidents=s.incidents.filter(x=>x.id!==el.dataset.id)},
+ copy:el=>{const t=el.dataset.t;try{navigator.clipboard.writeText(t).then(()=>toast('Copié'),()=>toast(t))}catch(_){toast(t)}return false},
+ roleSel:el=>{S.ui.roleSel=el.dataset.id},
+ newRole:()=>{const id=uid();S.roles.splice(S.roles.length-1,0,{id,name:'Nouveau rôle',color:AVC[S.roles.length%AVC.length],perms:Object.fromEntries(PERMS.map(([k])=>[k,k==='send'||k==='voice']))});S.ui.roleSel=id;audit('Nouveau rôle créé')},
+ delRole:el=>{const r=role(el.dataset.id);ask(`Supprimer le rôle ${r.name} ? Il sera retiré de tous les membres.`,()=>{S.roles=S.roles.filter(x=>x.id!==r.id);S.members.forEach(m=>m.roles=m.roles.filter(x=>x!==r.id));S.ui.roleSel=S.roles[0].id;audit(`Rôle ${r.name} supprimé`)},'Supprimer');return false},
+ roleMove:el=>{const i=S.roles.findIndex(r=>r.id===el.dataset.id);const j=i+ +el.dataset.d;if(j<0||j>=S.roles.length)return;[S.roles[i],S.roles[j]]=[S.roles[j],S.roles[i]]},
+ exportData:()=>{const j=JSON.stringify({...S,ui:undefined});try{navigator.clipboard.writeText(j).then(()=>toast('Sauvegarde copiée'),()=>toast('Copie refusée par le navigateur'))}catch(_){toast('Copie refusée par le navigateur')}return false},
+ logout:()=>{api('/api/logout',{}).catch(()=>{}).finally(()=>logoutLocal());return false},
+ cNo:(el,e)=>{if(e.target.closest('[data-stop]')&&!e.target.closest('[data-act="cNo"]'))return false;pending=null;$('#confirm-root').innerHTML='';return false},
+ cYes:()=>{const f=pending;pending=null;$('#confirm-root').innerHTML='';f&&f();save();render();return false},
+};
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el)return;if(!S&&!['rejoin','logout'].includes(el.dataset.act))return;
+ if(el.matches('.ov')&&e.target!==el&&e.target.closest('[data-stop]'))return;
+ const fn=A[el.dataset.act];if(!fn)return;if(el.tagName==='TR'&&e.target.closest('button,input,select'))return;
+ const r=fn(el,e);if(r===false||!S)return;save();render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S){if($('#confirm-root').innerHTML){pending=null;$('#confirm-root').innerHTML=''}else if(S.ui.modal)closeModal();else if(S.ui.navOpen){S.ui.navOpen=false;render()}}});
+(()=>{const q=new URLSearchParams(location.search);const tt=q.get('tiktok');if(tt){UIS.view='connections';history.replaceState(null,'',location.pathname);setTimeout(()=>toast(tt==='ok'?'Compte TikTok connecté':(q.get('msg')||'La connexion TikTok a échoué')),800)}})();
+api('/api/me').then(j=>{ACCOUNT=j.user;startApp()}).catch(()=>showAuth('login'));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "star-discussion",
+  "version": "1.0.0",
+  "description": "Forum façon Discord avec comptes, vérification e-mail, bots, créateurs TikTok et panels RedM/FiveM",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
